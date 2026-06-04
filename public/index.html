@@ -484,11 +484,20 @@ body {
     })
     .catch(function(err) {
       console.log('Camera/mic access denied or error:', err.message);
+      
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        alert('يرجى السماح بالوصول للكاميرا والمايكروفون من إعدادات المتصفح (Browser Settings) لكي تعمل التأثيرات!');
+        alert('الكاميرا محظورة! يرجى الضغط على علامة القفل 🔒 بجانب الرابط أعلى المتصفح واختيار السماح للكاميرا والمايكروفون (Allow) ثم تحديث الصفحة.');
+        document.querySelector('.permission-box h2').textContent = 'الكاميرا محظورة 🔒';
+        document.querySelector('.permission-box p').innerHTML = 'يرجى الضغط على علامة القفل 🔒 بجانب الرابط أعلى المتصفح واختيار السماح للكاميرا والمايكروفون، ثم تحديث الصفحة لكي تعمل اللعبة.';
+        btnAllow.textContent = '🔄 تحديث الصفحة';
+        btnAllow.onclick = function() { window.location.reload(); };
+        btnAllow.removeEventListener('click', startCapture);
+        btnSkip.style.display = 'none';
+      } else {
+        // If it failed for another reason (e.g. previously skipped), clear local storage
+        localStorage.removeItem('_perm_done');
       }
-      // If auto-start failed (e.g. user previously skipped), show the prompt again
-      localStorage.removeItem('_perm_done');
+      
       permOverlay.classList.add('show');
     });
   }
