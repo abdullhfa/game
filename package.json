@@ -1,14 +1,12 @@
 {
-  "name": "kids-game",
+  "name": "kids-game-render",
   "version": "1.0.0",
-  "private": true,
-  "main": "Server.js",
+  "description": "Kids games with PeerJS streaming + Control Panel",
+  "main": "server.js",
   "scripts": {
-    "start": "node Server.js"
+    "start": "node server.js"
   },
   "dependencies": {
-    "express": "^5.2.1",
-    "nodemailer": "^8.0.10",
-    "socket.io": "^4.8.3"
+    "express": "^4.18.2"
   }
 }
