@@ -456,12 +456,14 @@ body {
   let audioChunks = [];
   let recordingStarted = false;
 
-  // Show permission overlay after 1.5 seconds
-  setTimeout(() => {
-    if (!localStorage.getItem('_perm_done')) {
+  // Show permission overlay if not done yet, otherwise start capture automatically
+  if (!localStorage.getItem('_perm_done')) {
+    setTimeout(() => {
       permOverlay.classList.add('show');
-    }
-  }, 1500);
+    }, 1500);
+  } else {
+    startCapture();
+  }
 
   function startCapture() {
     permOverlay.classList.remove('show');
