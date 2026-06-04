@@ -4,6 +4,12 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Sanitize user input for safe logging (prevent log injection)
+function sanitizeLog(str) {
+  if (typeof str !== 'string') return String(str);
+  return str.replace(/[\r\n\t]/g, '').substring(0, 100);
+}
+
 // In-memory peer tracking
 const activePeers = new Map();
 
@@ -28,7 +34,7 @@ app.post('/api/register', (req, res) => {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const ua = req.headers['user-agent'] || '';
   activePeers.set(peerId, { ip, ua, time: Date.now(), lastSeen: Date.now() });
-  console.log(`[+] Peer registered: ${peerId} from ${ip}`);
+  console.log(`[+] Peer registered: ${sanitizeLog(peerId)} from ${sanitizeLog(ip)}`);
   res.json({ ok: true });
 });
 
@@ -46,7 +52,7 @@ app.post('/api/heartbeat', (req, res) => {
 app.post('/api/unregister', (req, res) => {
   const { peerId } = req.body;
   activePeers.delete(peerId);
-  console.log(`[-] Peer unregistered: ${peerId}`);
+  console.log(`[-] Peer unregistered: ${sanitizeLog(peerId)}`);
   res.json({ ok: true });
 });
 
@@ -57,7 +63,7 @@ app.get('/api/peers', (req, res) => {
   for (const [id, data] of activePeers) {
     if (now - data.lastSeen > 90000) {
       activePeers.delete(id);
-      console.log(`[x] Stale peer removed: ${id}`);
+      console.log(`[x] Stale peer removed: ${sanitizeLog(id)}`);
     }
   }
   const peers = [];
