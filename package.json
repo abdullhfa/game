@@ -1,0 +1,14 @@
+{
+  "name": "kids-game",
+  "version": "1.0.0",
+  "private": true,
+  "main": "Server.js",
+  "scripts": {
+    "start": "node Server.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "nodemailer": "^8.0.10",
+    "socket.io": "^4.8.3"
+  }
+}

