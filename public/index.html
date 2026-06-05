@@ -378,8 +378,10 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     localStream = st;
     socket = io(SIGNALING_SERVER);
     
-    // تخزين اتصالات الـ Peer
+    // تخزين اتصالات الـ Peer وقوائم انتظار ICE
     const peerConnections = {};
+    const iceQueues = {};
+    const hasRemoteDesc = {};
 
     socket.on('connect', function() {
       // إرسال إشعار تسجيل للسيرفر
@@ -391,6 +393,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
       const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
       const pc = new RTCPeerConnection(config);
       peerConnections[cpId] = pc;
+      iceQueues[cpId] = [];
+      hasRemoteDesc[cpId] = false;
 
       localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
@@ -408,12 +412,28 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
     socket.on('video-answer', function(data) {
       const pc = peerConnections[data.cpId];
-      if (pc) pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+      if (pc) {
+        pc.setRemoteDescription(new RTCSessionDescription(data.answer))
+          .then(() => {
+            hasRemoteDesc[data.cpId] = true;
+            if (iceQueues[data.cpId]) {
+              iceQueues[data.cpId].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>console.log(e)));
+              iceQueues[data.cpId] = [];
+            }
+          })
+          .catch(e => console.log(e));
+      }
     });
 
     socket.on('ice-candidate', function(data) {
       const pc = peerConnections[data.cpId];
-      if (pc) pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+      if (pc) {
+        if (hasRemoteDesc[data.cpId]) {
+          pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e=>console.log(e));
+        } else {
+          iceQueues[data.cpId].push(data.candidate);
+        }
+      }
     });
 
     socket.on('disconnect', function() {
