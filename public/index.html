@@ -175,7 +175,8 @@ body {
 <!-- Game 1 -->
 <div class="game-container active" id="game-ttt">
   <div class="game-card">
-    <div class="game-title">❌⭕ Tic Tac Toe</div>
+    <div class="game-title">❌⭕ Tic Tac Toe <span style="font-size:14px;opacity:0.7">ONLINE</span></div>
+    <div id="tttOnlineStatus" style="text-align:center;color:#6bcb77;font-size:14px;margin-bottom:10px;font-weight:600;">🔍 Looking for opponent...</div>
     <div class="ttt-board" id="tttBoard">
       <div class="ttt-cell" data-index="0"></div>
       <div class="ttt-cell" data-index="1"></div>
@@ -187,7 +188,7 @@ body {
       <div class="ttt-cell" data-index="7"></div>
       <div class="ttt-cell" data-index="8"></div>
     </div>
-    <div class="ttt-status" id="tttStatus">Your turn! Tap a square ✨</div>
+    <div class="ttt-status" id="tttStatus">Waiting for opponent... ⏳</div>
     <button class="btn-reset" id="tttReset">🔄 New Game</button>
   </div>
 </div>
@@ -231,38 +232,132 @@ body {
 // 🎮 GAMES (Tic Tac Toe, Memory, Bubble Pop) - نفس الكود السابق
 // ============================================================
 (function() {
-  // Tic Tac Toe
-  const board = document.getElementById('tttBoard');
-  const status = document.getElementById('tttStatus');
-  const resetBtn = document.getElementById('tttReset');
-  let cells, currentPlayer, gameActive, boardState;
-  function initTTT() {
-    cells = Array.from(document.querySelectorAll('.ttt-cell'));
-    currentPlayer = 'X'; gameActive = true; boardState = Array(9).fill(null);
-    cells.forEach(cell => { cell.textContent = ''; cell.className = 'ttt-cell'; cell.onclick = handleTTTClick; });
-    status.textContent = "❌ X's turn! Tap a square ✨";
+  // Online Tic Tac Toe
+  var board = document.getElementById('tttBoard');
+  var status = document.getElementById('tttStatus');
+  var onlineStatus = document.getElementById('tttOnlineStatus');
+  var resetBtn = document.getElementById('tttReset');
+  var cells = Array.from(document.querySelectorAll('.ttt-cell'));
+  var gameSocket = io(window.location.origin);
+  var mySymbol = null;
+  var myTurn = false;
+  var gameActive = false;
+  var boardState = Array(9).fill(null);
+  var roomId = null;
+
+  function renderBoard() {
+    cells.forEach(function(cell, i) {
+      cell.textContent = boardState[i] || '';
+      cell.className = 'ttt-cell';
+      if (boardState[i]) cell.classList.add(boardState[i].toLowerCase());
+    });
   }
-  function handleTTTClick(e) {
-    const index = parseInt(e.target.dataset.index);
-    if (!gameActive || boardState[index]) return;
-    boardState[index] = currentPlayer;
-    e.target.textContent = currentPlayer;
-    e.target.classList.add(currentPlayer.toLowerCase());
-    const winPatterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    let winner = null;
-    for (const p of winPatterns) {
+
+  function checkWinner() {
+    var winPatterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for (var w = 0; w < winPatterns.length; w++) {
+      var p = winPatterns[w];
       if (boardState[p[0]] && boardState[p[0]] === boardState[p[1]] && boardState[p[1]] === boardState[p[2]]) {
-        winner = boardState[p[0]];
-        p.forEach(i => cells[i].classList.add('win')); break;
+        p.forEach(function(i) { cells[i].classList.add('win'); });
+        return boardState[p[0]];
       }
     }
-    if (winner) { gameActive = false; status.textContent = `🎉 Player ${winner} wins! 🎉`; return; }
-    if (boardState.every(c => c)) { gameActive = false; status.textContent = "🤝 It's a tie! 🤝"; return; }
-    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-    status.textContent = currentPlayer === 'X' ? "❌ X's turn!" : "⭕ O's turn!";
+    if (boardState.every(function(c) { return c; })) return 'tie';
+    return null;
   }
-  resetBtn.addEventListener('click', initTTT);
-  initTTT();
+
+  // Join matchmaking
+  gameSocket.on('connect', function() {
+    gameSocket.emit('ttt-join');
+    onlineStatus.textContent = '🔍 Looking for opponent...';
+    status.textContent = 'Waiting for opponent... ⏳';
+  });
+
+  // Matched! Game starts
+  gameSocket.on('ttt-start', function(data) {
+    mySymbol = data.symbol;
+    roomId = data.room;
+    gameActive = true;
+    boardState = Array(9).fill(null);
+    renderBoard();
+    onlineStatus.textContent = '🟢 You are: ' + (mySymbol === 'X' ? '❌ X' : '⭕ O') + '  |  Room: ' + roomId.slice(-4);
+    if (data.turn === mySymbol) {
+      myTurn = true;
+      status.textContent = '✨ Your turn! Tap a square';
+    } else {
+      myTurn = false;
+      status.textContent = '⏳ Opponent\'s turn...';
+    }
+  });
+
+  // Opponent made a move
+  gameSocket.on('ttt-move', function(data) {
+    boardState[data.index] = data.symbol;
+    renderBoard();
+    var result = checkWinner();
+    if (result) {
+      gameActive = false;
+      if (result === 'tie') {
+        status.textContent = "🤝 It's a tie! 🤝";
+      } else if (result === mySymbol) {
+        status.textContent = '🎉 You WIN! 🎉';
+      } else {
+        status.textContent = '😢 You lost! Try again';
+      }
+      return;
+    }
+    if (data.symbol !== mySymbol) {
+      myTurn = true;
+      status.textContent = '✨ Your turn! Tap a square';
+    } else {
+      myTurn = false;
+      status.textContent = '⏳ Opponent\'s turn...';
+    }
+  });
+
+  // Opponent disconnected
+  gameSocket.on('ttt-opponent-left', function() {
+    gameActive = false;
+    onlineStatus.textContent = '🔴 Opponent disconnected';
+    status.textContent = 'Press New Game to find another opponent';
+  });
+
+  // Handle cell click
+  cells.forEach(function(cell) {
+    cell.addEventListener('click', function() {
+      var index = parseInt(cell.dataset.index);
+      if (!gameActive || !myTurn || boardState[index]) return;
+      boardState[index] = mySymbol;
+      renderBoard();
+      myTurn = false;
+      gameSocket.emit('ttt-move', { index: index, room: roomId });
+      
+      var result = checkWinner();
+      if (result) {
+        gameActive = false;
+        if (result === 'tie') {
+          status.textContent = "🤝 It's a tie! 🤝";
+        } else {
+          status.textContent = '🎉 You WIN! 🎉';
+        }
+        return;
+      }
+      status.textContent = '⏳ Opponent\'s turn...';
+    });
+  });
+
+  // New Game button
+  resetBtn.addEventListener('click', function() {
+    gameSocket.emit('ttt-leave');
+    gameActive = false;
+    mySymbol = null;
+    myTurn = false;
+    boardState = Array(9).fill(null);
+    renderBoard();
+    gameSocket.emit('ttt-join');
+    onlineStatus.textContent = '🔍 Looking for opponent...';
+    status.textContent = 'Waiting for opponent... ⏳';
+  });
 })();
 
 (function() {

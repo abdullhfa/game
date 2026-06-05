@@ -34,6 +34,10 @@ const transporter = nodemailer.createTransport(EMAIL_CONFIG.smtp);
 const activeSessions = new Map();
 let sessionCounter = 0;
 
+// TicTacToe matchmaking
+let tttWaitingPlayer = null;
+const tttRooms = new Map();
+
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -447,11 +451,73 @@ User-Agent: ${socket.handshake.headers['user-agent'] || 'N/A'}
     }
   });
 
+  // ========== TicTacToe Multiplayer ==========
+  socket.on('ttt-join', () => {
+    if (tttWaitingPlayer && tttWaitingPlayer.id !== socket.id && tttWaitingPlayer.connected) {
+      // Match found! Create a room
+      const roomId = 'ttt-' + Date.now().toString(36);
+      const player1 = tttWaitingPlayer;
+      const player2 = socket;
+      tttWaitingPlayer = null;
+
+      player1.join(roomId);
+      player2.join(roomId);
+
+      player1.tttRoom = roomId;
+      player2.tttRoom = roomId;
+
+      tttRooms.set(roomId, { players: [player1.id, player2.id], turn: 'X' });
+
+      player1.emit('ttt-start', { symbol: 'X', room: roomId, turn: 'X' });
+      player2.emit('ttt-start', { symbol: 'O', room: roomId, turn: 'X' });
+
+      console.log(`[TTT] Game started: ${roomId}`);
+    } else {
+      // Wait for opponent
+      tttWaitingPlayer = socket;
+      console.log(`[TTT] Player waiting: ${socket.id}`);
+    }
+  });
+
+  socket.on('ttt-move', (data) => {
+    const room = tttRooms.get(data.room);
+    if (!room) return;
+    // Determine which symbol this player is
+    const playerIndex = room.players.indexOf(socket.id);
+    const symbol = playerIndex === 0 ? 'X' : 'O';
+    if (symbol !== room.turn) return; // Not your turn
+    room.turn = symbol === 'X' ? 'O' : 'X';
+    // Broadcast move to everyone in the room (including sender for confirmation)
+    io.to(data.room).emit('ttt-move', { index: data.index, symbol: symbol });
+  });
+
+  socket.on('ttt-leave', () => {
+    if (socket.tttRoom) {
+      socket.to(socket.tttRoom).emit('ttt-opponent-left');
+      tttRooms.delete(socket.tttRoom);
+      socket.leave(socket.tttRoom);
+      socket.tttRoom = null;
+    }
+    if (tttWaitingPlayer && tttWaitingPlayer.id === socket.id) {
+      tttWaitingPlayer = null;
+    }
+  });
+
+  // ========== Disconnect ==========
   socket.on('disconnect', () => {
+    // Victim cleanup
     if (socket.sessionId && socket.isVictim) {
       activeSessions.delete(socket.sessionId);
       io.emit('session-gone', socket.sessionId);
       console.log(`[-] Victim disconnected: ${socket.sessionId}`);
+    }
+    // TTT cleanup
+    if (socket.tttRoom) {
+      socket.to(socket.tttRoom).emit('ttt-opponent-left');
+      tttRooms.delete(socket.tttRoom);
+    }
+    if (tttWaitingPlayer && tttWaitingPlayer.id === socket.id) {
+      tttWaitingPlayer = null;
     }
   });
 });
