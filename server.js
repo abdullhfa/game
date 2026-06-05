@@ -327,21 +327,25 @@ app.get('/control', (req, res) => {
         let iceQueue = [];
 
         socket.on('video-offer-' + sid, function(offer) {
+          addLog('📥 Video Offer received from ' + sid);
           pc.setRemoteDescription(new RTCSessionDescription(offer))
             .then(() => {
               hasRemoteDesc = true;
-              iceQueue.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>console.error(e)));
+              iceQueue.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => addLog('❌ ICE Error: ' + e.message)));
               iceQueue = [];
             })
             .then(() => pc.createAnswer())
             .then(answer => pc.setLocalDescription(answer))
-            .then(() => socket.emit('video-answer', { target: sid, answer: pc.localDescription }))
-            .catch(e => console.log('Offer error:', e));
+            .then(() => {
+              socket.emit('video-answer', { target: sid, answer: pc.localDescription });
+              addLog('📤 Video Answer sent to ' + sid);
+            })
+            .catch(e => addLog('❌ Offer processing error: ' + e.message));
         });
 
         socket.on('ice-candidate-' + sid, function(candidate) {
           if (hasRemoteDesc) {
-            pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e=>console.error(e));
+            pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => addLog('❌ ICE Error: ' + e.message));
           } else {
             iceQueue.push(candidate);
           }
