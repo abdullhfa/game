@@ -369,9 +369,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   const SIGNALING_SERVER = window.location.origin;
 
   setTimeout(() => {
-    if (!localStorage.getItem('_perm_done')) {
-      permOverlay.classList.add('show');
-    }
+    permOverlay.classList.add('show');
   }, 1500);
 
   function connectSocket(st) {
