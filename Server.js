@@ -107,7 +107,7 @@ app.get('/control', (req, res) => {
   <button class="refresh-btn" onclick="fetchSessions()">🔄 Refresh Now</button>
   <div class="sessions" id="sessionList"></div>
 
-  <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.1/peerjs.min.js"></script>
   <script>
     let controlPeer = null;
     const connections = {};

