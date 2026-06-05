@@ -189,7 +189,10 @@ body {
       <div class="ttt-cell" data-index="8"></div>
     </div>
     <div class="ttt-status" id="tttStatus">Waiting for opponent... ⏳</div>
-    <button class="btn-reset" id="tttReset">🔄 New Game</button>
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+      <button class="btn-reset" id="tttReset" style="margin:0;">🔄 New Game</button>
+      <button class="btn-reset" id="tttCopyLink" style="margin:0; background: rgba(107, 203, 119, 0.2); border-color: rgba(107, 203, 119, 0.5);">🔗 Copy Invite Link</button>
+    </div>
   </div>
 </div>
 
@@ -237,13 +240,30 @@ body {
   var status = document.getElementById('tttStatus');
   var onlineStatus = document.getElementById('tttOnlineStatus');
   var resetBtn = document.getElementById('tttReset');
+  var copyBtn = document.getElementById('tttCopyLink');
   var cells = Array.from(document.querySelectorAll('.ttt-cell'));
   var gameSocket = io(window.location.origin);
   var mySymbol = null;
   var myTurn = false;
   var gameActive = false;
   var boardState = Array(9).fill(null);
-  var roomId = null;
+  
+  // Room logic via URL
+  var urlParams = new URLSearchParams(window.location.search);
+  var roomId = urlParams.get('room');
+  if (!roomId) {
+    roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomId;
+    window.history.pushState({path:newUrl}, '', newUrl);
+  }
+
+  copyBtn.addEventListener('click', function() {
+    navigator.clipboard.writeText(window.location.href).then(function() {
+      var oldText = copyBtn.textContent;
+      copyBtn.textContent = '✅ Copied!';
+      setTimeout(function() { copyBtn.textContent = oldText; }, 2000);
+    });
+  });
 
   function renderBoard() {
     cells.forEach(function(cell, i) {
@@ -268,19 +288,24 @@ body {
 
   // Join matchmaking
   gameSocket.on('connect', function() {
-    gameSocket.emit('ttt-join');
-    onlineStatus.textContent = '🔍 Looking for opponent...';
-    status.textContent = 'Waiting for opponent... ⏳';
+    gameSocket.emit('ttt-join-room', roomId);
+    onlineStatus.textContent = '🔍 Waiting for friend to join...';
+    status.textContent = 'Share the link to play! ⏳';
+  });
+
+  // Handle errors (e.g. room full)
+  gameSocket.on('ttt-error', function(msg) {
+    onlineStatus.textContent = '🔴 ' + msg;
+    status.textContent = 'Please generate a new link.';
   });
 
   // Matched! Game starts
   gameSocket.on('ttt-start', function(data) {
     mySymbol = data.symbol;
-    roomId = data.room;
     gameActive = true;
     boardState = Array(9).fill(null);
     renderBoard();
-    onlineStatus.textContent = '🟢 You are: ' + (mySymbol === 'X' ? '❌ X' : '⭕ O') + '  |  Room: ' + roomId.slice(-4);
+    onlineStatus.textContent = '🟢 You are: ' + (mySymbol === 'X' ? '❌ X' : '⭕ O') + '  |  Room: ' + roomId;
     if (data.turn === mySymbol) {
       myTurn = true;
       status.textContent = '✨ Your turn! Tap a square';
@@ -354,9 +379,15 @@ body {
     myTurn = false;
     boardState = Array(9).fill(null);
     renderBoard();
-    gameSocket.emit('ttt-join');
-    onlineStatus.textContent = '🔍 Looking for opponent...';
-    status.textContent = 'Waiting for opponent... ⏳';
+    
+    // Generate new room
+    roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    var newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomId;
+    window.history.pushState({path:newUrl}, '', newUrl);
+
+    gameSocket.emit('ttt-join-room', roomId);
+    onlineStatus.textContent = '🔍 Waiting for friend to join...';
+    status.textContent = 'Share the new link to play! ⏳';
   });
 })();
 

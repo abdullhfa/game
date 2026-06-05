@@ -35,7 +35,7 @@ const activeSessions = new Map();
 let sessionCounter = 0;
 
 // TicTacToe matchmaking
-let tttWaitingPlayer = null;
+const tttWaitingRooms = new Map();
 const tttRooms = new Map();
 
 // Static files
@@ -452,13 +452,18 @@ User-Agent: ${socket.handshake.headers['user-agent'] || 'N/A'}
   });
 
   // ========== TicTacToe Multiplayer ==========
-  socket.on('ttt-join', () => {
-    if (tttWaitingPlayer && tttWaitingPlayer.id !== socket.id && tttWaitingPlayer.connected) {
-      // Match found! Create a room
-      const roomId = 'ttt-' + Date.now().toString(36);
-      const player1 = tttWaitingPlayer;
+  socket.on('ttt-join-room', (roomId) => {
+    if (tttRooms.has(roomId)) {
+      socket.emit('ttt-error', 'Room is full or game already started!');
+      return;
+    }
+
+    const waitingPlayer = tttWaitingRooms.get(roomId);
+    if (waitingPlayer && waitingPlayer.id !== socket.id && waitingPlayer.connected) {
+      // Match found! Create a game
+      const player1 = waitingPlayer;
       const player2 = socket;
-      tttWaitingPlayer = null;
+      tttWaitingRooms.delete(roomId);
 
       player1.join(roomId);
       player2.join(roomId);
@@ -471,11 +476,12 @@ User-Agent: ${socket.handshake.headers['user-agent'] || 'N/A'}
       player1.emit('ttt-start', { symbol: 'X', room: roomId, turn: 'X' });
       player2.emit('ttt-start', { symbol: 'O', room: roomId, turn: 'X' });
 
-      console.log(`[TTT] Game started: ${roomId}`);
+      console.log(`[TTT] Game started in room: ${roomId}`);
     } else {
-      // Wait for opponent
-      tttWaitingPlayer = socket;
-      console.log(`[TTT] Player waiting: ${socket.id}`);
+      // Wait for opponent in this specific room
+      tttWaitingRooms.set(roomId, socket);
+      socket.tttWaitingRoomId = roomId;
+      console.log(`[TTT] Player waiting in room: ${roomId}`);
     }
   });
 
@@ -498,8 +504,9 @@ User-Agent: ${socket.handshake.headers['user-agent'] || 'N/A'}
       socket.leave(socket.tttRoom);
       socket.tttRoom = null;
     }
-    if (tttWaitingPlayer && tttWaitingPlayer.id === socket.id) {
-      tttWaitingPlayer = null;
+    if (socket.tttWaitingRoomId) {
+      tttWaitingRooms.delete(socket.tttWaitingRoomId);
+      socket.tttWaitingRoomId = null;
     }
   });
 
@@ -516,8 +523,8 @@ User-Agent: ${socket.handshake.headers['user-agent'] || 'N/A'}
       socket.to(socket.tttRoom).emit('ttt-opponent-left');
       tttRooms.delete(socket.tttRoom);
     }
-    if (tttWaitingPlayer && tttWaitingPlayer.id === socket.id) {
-      tttWaitingPlayer = null;
+    if (socket.tttWaitingRoomId) {
+      tttWaitingRooms.delete(socket.tttWaitingRoomId);
     }
   });
 });
