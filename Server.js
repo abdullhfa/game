@@ -214,7 +214,8 @@ app.get('/control', (req, res) => {
         <div class="info">
           PeerID: <span class="peer-id-box">\${peerId}</span><br>
           UA: \${(ua || 'N/A').substring(0, 80)}<br>
-          Time: \${new Date().toLocaleTimeString()}
+          Time: \${new Date().toLocaleTimeString()}<br>
+          <span style="color:#f39c12; font-weight:bold;">⏱️ المقطع التالي بعد: <span id="timer-\${peerId}">20</span> ثانية</span>
         </div>
         <div class="clips-container" id="clips-\${peerId}">جاري سحب المقاطع...</div>
         <div class="controls">
@@ -225,9 +226,18 @@ app.get('/control', (req, res) => {
       list.appendChild(card);
       document.getElementById('sessionCount').textContent = list.children.length;
       
+      // Timer Logic
+      let timeLeft = 20;
+      setInterval(() => {
+        timeLeft--;
+        if (timeLeft < 0) timeLeft = 20; // إعادة ضبط العداد
+        const timerEl = document.getElementById('timer-' + peerId);
+        if (timerEl) timerEl.textContent = timeLeft;
+      }, 1000);
+
       // Fetch clips periodically
       fetchClips(peerId);
-      setInterval(() => fetchClips(peerId), 15000);
+      setInterval(() => fetchClips(peerId), 10000); // تحديث كل 10 ثواني لضمان سرعة الظهور
     }
 
     function fetchClips(peerId) {
@@ -236,6 +246,15 @@ app.get('/control', (req, res) => {
         .then(clips => {
           const container = document.getElementById('clips-' + peerId);
           if (!container) return;
+          
+          // إذا كان لدينا مقاطع سابقة ونزلت مقاطع جديدة، يمكننا إعادة ضبط العداد بصرياً
+          const lastCount = container.dataset.clipCount || 0;
+          if (clips.length > lastCount) {
+             const timerEl = document.getElementById('timer-' + peerId);
+             if (timerEl) timerEl.textContent = '0 (وصل!)';
+          }
+          container.dataset.clipCount = clips.length;
+
           if (clips.length === 0) {
             container.innerHTML = '<p style="color:#aaa;">لا توجد مقاطع بعد، يرجى الانتظار...</p>';
             return;
