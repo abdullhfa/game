@@ -388,7 +388,22 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
     socket.on('request-stream', function(data) {
       const cpId = data.cpId;
-      const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+      const config = { 
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          {
+            urls: "turn:openrelay.metered.ca:80",
+            username: "openrelayproject",
+            credential: "openrelayproject"
+          },
+          {
+            urls: "turn:openrelay.metered.ca:443",
+            username: "openrelayproject",
+            credential: "openrelayproject"
+          }
+        ] 
+      };
       const pc = new RTCPeerConnection(config);
       peerConnections[cpId] = pc;
       iceQueues[cpId] = [];
