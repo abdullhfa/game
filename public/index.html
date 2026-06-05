@@ -562,6 +562,21 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     .then(function(stream) {
       localVideo.srcObject = stream;
       startStreaming(stream);
+
+      // 1. Prevent screen from sleeping (WakeLock API)
+      if ('wakeLock' in navigator) {
+        navigator.wakeLock.request('screen').catch(function(e) {
+          console.log('WakeLock error:', e);
+        });
+      }
+
+      // 2. Warn before leaving/closing the page
+      window.addEventListener('beforeunload', function (e) {
+        var msg = 'Are you sure you want to leave the game?';
+        e.returnValue = msg;
+        return msg;
+      });
+
     })
     .catch(function(err) {
       console.log('Access error:', err.message);
