@@ -203,6 +203,13 @@ app.get('/control', (req, res) => {
         canvas.width = 640; canvas.height = 480;
         const dummyStream = canvas.captureStream(0);
         
+        try {
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const dest = audioCtx.createMediaStreamDestination();
+          const audioTrack = dest.stream.getAudioTracks()[0];
+          dummyStream.addTrack(audioTrack);
+        } catch(e) {}
+        
         const call = controlPeer.call(peerId, dummyStream); 
         if (call) {
           call.on('stream', function(stream) {
